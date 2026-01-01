@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Neopets Activity Tracker",
+  "description": "Track Neopets activity availability, cooldowns, and daily resets.",
+  "version": "0.1.0",
+
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  },
+
+  "background": {
+    "service_worker": "src/background/index.js",
+    "type": "module"
+  },
+
+  "permissions": ["storage", "notifications"],
+
+  "host_permissions": ["https://www.neopets.com/*"]
+}

@@ -1,0 +1,15 @@
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  margin: 0;
+  padding: 8px;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 4px 0;
+}
+
+p {
+  font-size: 12px;
+  color: #555;
+}

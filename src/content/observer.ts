@@ -1,0 +1,1 @@
+console.log("[Neopets Activity Tracker] Content observer loaded");

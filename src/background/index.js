@@ -1,0 +1,1 @@
+console.log("[Neopets Activity Tracker] Background service worker loaded");

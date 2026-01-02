@@ -1,0 +1,23 @@
+{
+  "name": "neopets-activity-webtool",
+  "version": "1.0.0",
+  "description": "A browser extension that helps track Neopets activities, cooldowns, and daily resets,\r and notifies you when activities are available again.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FoolsFlagonStudio/Neopets-Activity-Webtool.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FoolsFlagonStudio/Neopets-Activity-Webtool/issues"
+  },
+  "homepage": "https://github.com/FoolsFlagonStudio/Neopets-Activity-Webtool#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.1.32"
+  }
+}

@@ -5,11 +5,11 @@
   "version": "0.1.5",
 
   "action": {
-    "default_popup": "src/popup/popup.html"
+    "default_popup": "./src/popup/popup.html"
   },
 
   "background": {
-    "service_worker": "src/background/index.js",
+    "service_worker": "./dist/background.js",
     "type": "module"
   },
 

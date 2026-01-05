@@ -1,6 +1,16 @@
 import { ACTIVITIES } from "../data/activities.js";
 import { loadActivityState, saveActivityState } from "./stateManager.js";
 import { computeAvailability } from "./availabilityEngine.js";
+import { startScheduler } from "./scheduler";
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("[Neopets Activity Tracker] Installed");
+  startScheduler();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  startScheduler();
+});
 
 console.log("[Neopets Activity Tracker] Background service worker loaded");
 

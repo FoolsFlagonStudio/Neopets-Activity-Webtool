@@ -3,6 +3,38 @@ import {
   ActivityDefinition,
   ActivityState,
 } from "./../types/activity";
+import { ACTIVITIES } from "../data/activities";
+import { loadActivityState } from "./stateManager";
+
+/**
+ * Returns all activities with computed availability
+ * Used by scheduler & notifications
+ */
+export async function getAllActivitiesWithAvailability(): Promise<
+  {
+    definition: ActivityDefinition;
+    state: ActivityState;
+    availability: AvailabilityResult;
+  }[]
+> {
+  const now = Date.now();
+  const stateMap = await loadActivityState();
+
+  return ACTIVITIES.map((definition) => {
+    const state: ActivityState = stateMap[definition.id] ?? {
+      enabled: true,
+      notificationsEnabled: true,
+    };
+
+    const availability = computeAvailability({ definition, state }, now);
+
+    return {
+      definition,
+      state,
+      availability,
+    };
+  });
+}
 
 // availability status for an activity
 export type AvailabilityStatus = "AVAILABLE" | "LOCKED" | "SOON";

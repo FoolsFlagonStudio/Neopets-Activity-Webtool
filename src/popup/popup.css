@@ -1,32 +1,30 @@
-body {
-  margin: 0;
-  padding: 8px;
-  width: 300px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 12px;
+.category-header {
+  margin-top: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #666;
 }
 
-header h1 {
-  font-size: 14px;
-  margin: 0 0 8px 0;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-li {
+.activity-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 4px;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.activity-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .status {
   font-weight: bold;
 }
 
-.status.available {
+.status.ready {
   color: green;
 }
 
@@ -34,8 +32,7 @@ li {
   color: #999;
 }
 
-footer {
-  margin-top: 8px;
-  text-align: center;
-  color: #888;
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

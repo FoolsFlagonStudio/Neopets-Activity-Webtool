@@ -81,6 +81,7 @@ export interface ActivityState {
   lastResetAt?: number; // Timestamp (ms) of the last reset applied
   enabled: boolean; // Whether this activity is enabled by the user
   notificationsEnabled: boolean; // Whether notifications are enabled for this activity
+  lastNotifiedAt?: number;
 }
 
 /**

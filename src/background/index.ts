@@ -52,4 +52,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     return true;
   }
+
+  if (message?.type === "AUTO_MARK_COMPLETED") {
+    const { activityId } = message;
+
+    loadActivityState().then((stateMap) => {
+      const existing = stateMap[activityId] ?? {
+        enabled: true,
+        notificationsEnabled: false,
+      };
+
+      stateMap[activityId] = {
+        ...existing,
+        lastCompletedAt: Date.now(),
+        usesToday: (existing.usesToday ?? 0) + 1,
+      };
+
+      saveActivityState(stateMap).then(() => {
+        sendResponse({ success: true });
+      });
+    });
+
+    return true;
+  }
 });

@@ -6,6 +6,7 @@ const ctx = await esbuild.context({
   entryPoints: {
     background: "./src/background/index.ts",
     popup: "./src/popup/popup.ts",
+    content: "./src/content/index.ts"
   },
   outdir: "dist",
   bundle: true,

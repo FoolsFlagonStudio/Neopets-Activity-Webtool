@@ -5,15 +5,24 @@ interface AvailabilityResult {
   msUntilAvailable?: number;
 }
 
+interface ActivityStateLite {
+  usesToday?: number;
+}
+
 interface ActivityDefinitionLite {
   id: string;
   name: string;
-  url: string;
+  url?: string;
+  urls?: string[];
   category: string;
+  timingType?: "DAILY_RESET" | "DAILY_LIMIT" | "COOLDOWN";
+  maxPerDay?: number;
+  notes?: string;
 }
 
 interface ActivityView {
   definition: ActivityDefinitionLite;
+  state: ActivityStateLite;
   availability: AvailabilityResult;
 }
 
@@ -23,6 +32,25 @@ interface GetActivitiesResponse {
 
 interface MarkCompletedResponse {
   success: boolean;
+}
+
+function resolveState(
+  activity: ActivityView,
+  allActivities: ActivityView[]
+): ActivityStateLite {
+  const sharedWith = (activity.definition as any).sharedWith;
+  if (!sharedWith) return activity.state;
+
+  const shared = allActivities.find((a) => a.definition.id === sharedWith);
+  return shared?.state ?? activity.state;
+}
+
+function formatAvailableDate(msUntilAvailable: number): string {
+  const date = new Date(Date.now() + msUntilAvailable);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function assertElement<T extends Element>(el: T | null, msg: string): T {
@@ -39,6 +67,19 @@ function titleCase(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// ---------- DAILY_LIMIT label helper ----------
+function getLimitLabel(
+  definition: ActivityDefinitionLite,
+  state: ActivityStateLite
+): string | null {
+  if (definition.timingType !== "DAILY_LIMIT") return null;
+  if (typeof definition.maxPerDay !== "number") return null;
+
+  const used = state.usesToday ?? 0;
+  return `${used} / ${definition.maxPerDay}`;
+}
+
+// ---------- Time formatting ----------
 function formatDuration(ms: number): string {
   const totalMinutes = Math.ceil(ms / 60000);
   const hours = Math.floor(totalMinutes / 60);
@@ -49,18 +90,87 @@ function formatDuration(ms: number): string {
   return `In ${minutes}m`;
 }
 
-function availabilityLabel(a: AvailabilityResult): string {
-  if (a.status === "AVAILABLE") return "Ready";
+function availabilityLabel(
+  activity: ActivityView,
+  limitLabel: string | null
+): string {
+  const { availability, definition } = activity;
 
-  if (a.msUntilAvailable !== undefined) {
-    if (a.msUntilAvailable < 24 * 60 * 60 * 1000) {
-      return formatDuration(a.msUntilAvailable);
-    }
+  // Snowager special-case (time windows)
+  if (definition.id === "snowager" && availability.status === "AVAILABLE") {
+    return "Check time window in notes";
+  }
+
+  if (
+    definition.id === "guess_the_marrow" &&
+    availability.status === "AVAILABLE"
+  ) {
+    return "Check regularly";
+  }
+
+  if (
+    definition.id === "wise_old_king" &&
+    availability.status === "AVAILABLE"
+  ) {
+    return "Check time window in notes";
+  }
+
+  if (
+    definition.id === "grumpy_old_king" &&
+    availability.status === "AVAILABLE"
+  ) {
+    return "Check time window in notes";
+  }
+
+  if (availability.status === "AVAILABLE") {
+    return limitLabel ? `Ready (${limitLabel})` : "Ready";
+  }
+
+  if (limitLabel) {
+    return `Done (${limitLabel})`;
+  }
+
+  if (
+    availability.msUntilAvailable !== undefined &&
+    availability.msUntilAvailable < 24 * 60 * 60 * 1000
+  ) {
+    return formatDuration(availability.msUntilAvailable);
+  }
+
+  if (availability.msUntilAvailable !== undefined) {
+    return `Available ${formatAvailableDate(availability.msUntilAvailable)}`;
   }
 
   return "Tomorrow";
 }
 
+// ---------- Link rendering ----------
+function renderLinks(def: ActivityDefinitionLite): string {
+  const links = def.urls ?? (def.url ? [def.url] : []);
+
+  if (links.length === 0) return "";
+
+  if (links.length === 1) {
+    return `
+      <a href="${links[0]}" target="_blank" rel="noreferrer">
+        ${def.name}
+      </a>
+    `;
+  }
+
+  return `
+    <div class="multi-links">
+      ${links
+        .map((u) => {
+          const label = new URL(u).pathname.split("/")[1] ?? "link";
+          return `<a href="${u}" target="_blank" rel="noreferrer">${label}</a>`;
+        })
+        .join(" · ")}
+    </div>
+  `;
+}
+
+// ---------- Render ----------
 function render(activities: ActivityView[]): void {
   root.innerHTML = "";
 
@@ -89,14 +199,21 @@ function render(activities: ActivityView[]): void {
       const li = document.createElement("li");
       li.className = "activity-row";
 
-      const label = availabilityLabel(activity.availability);
+      const effectiveState = resolveState(activity, activities);
+      const limitLabel = getLimitLabel(activity.definition, effectiveState);
+      const label = availabilityLabel(activity, limitLabel);
       const isReady = activity.availability.status === "AVAILABLE";
 
       li.innerHTML = `
         <div class="activity-main">
-          <a href="${activity.definition.url}" target="_blank" rel="noreferrer">
-            ${activity.definition.name}
-          </a>
+          <div class="activity-title">
+            ${renderLinks(activity.definition)}
+            ${
+              activity.definition.notes
+                ? `<div class="note">${activity.definition.notes}</div>`
+                : ""
+            }
+          </div>
           <span class="status ${isReady ? "ready" : "locked"}">
             ${label}
           </span>
@@ -121,6 +238,7 @@ function render(activities: ActivityView[]): void {
   }
 }
 
+// ---------- Load ----------
 function loadActivities(): void {
   chrome.runtime.sendMessage(
     { type: "GET_ACTIVITIES" },

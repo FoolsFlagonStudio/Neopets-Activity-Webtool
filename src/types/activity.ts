@@ -6,9 +6,12 @@
 export type TimingType =
   | "DAILY_RESET"
   | "DAILY_LIMIT"
+  | "MONTHLY_RESET"
   | "COOLDOWN"
   | "WINDOWED"
-  | "CONDITIONAL";
+  | "CONDITIONAL"
+  | "STATIC"
+  | "VARIABLE_COOLDOWN";
 
 /**
  * Shared base fields for all activity definitions.
@@ -17,9 +20,11 @@ export type TimingType =
 export interface BaseActivityDefinition {
   id: string; // stable unique identifier
   name: string; // readable name shown in UI
-  url: string; // primary url for activity
+  url?: string; // primary url for activity
+  urls?: string[];
   category: string; // used for grouping in ui; "wheels", "dailies", etc.
   timingType: TimingType;
+  sharedWith?: string;
   notes?: string; // Optinoal descriptive notes
 }
 
@@ -36,6 +41,8 @@ export interface DailyResetActivity extends BaseActivityDefinition {
 export interface DailyLimitActivity extends BaseActivityDefinition {
   timingType: "DAILY_LIMIT";
   maxPerDay: number;
+  resetTimezone?: string;
+  resetHour?: number;
 }
 
 export interface CooldownActivity extends BaseActivityDefinition {
@@ -60,6 +67,19 @@ export interface ConditionalActivity extends BaseActivityDefinition {
   requirements: string[]; // readable requirements (not enforced programatically) e.g., "Requires full map"
 }
 
+export interface StaticActivity extends BaseActivityDefinition {
+  timingType: "STATIC";
+}
+
+export interface MonthlyResetActivity extends BaseActivityDefinition {
+  timingType: "MONTHLY_RESET";
+  resetTimezone?: string;
+}
+
+export interface VariableCooldownActivity extends BaseActivityDefinition {
+  timingType: "VARIABLE_COOLDOWN";
+}
+
 /* ─────────────────────────────────────────────── */
 /*           Union of all definitions              */
 /* ─────────────────────────────────────────────── */
@@ -69,7 +89,10 @@ export type ActivityDefinition =
   | DailyLimitActivity
   | CooldownActivity
   | WindowedActivity
-  | ConditionalActivity;
+  | ConditionalActivity
+  | StaticActivity
+  | MonthlyResetActivity
+  | VariableCooldownActivity;
 
 /* ─────────────────────────────────────────────── */
 /* Runtime activity state (mutable)                 */
@@ -78,6 +101,7 @@ export type ActivityDefinition =
 export interface ActivityState {
   lastCompletedAt?: number; // Timestamp (ms) when the activity was last completed
   usesToday?: number; // Number of times used in the current reset window
+  lastUsedDay?: string;
   lastResetAt?: number; // Timestamp (ms) of the last reset applied
   enabled: boolean; // Whether this activity is enabled by the user
   notificationsEnabled: boolean; // Whether notifications are enabled for this activity

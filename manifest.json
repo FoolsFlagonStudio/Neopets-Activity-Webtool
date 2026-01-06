@@ -24,7 +24,7 @@
     "128": "assets/icons/icon128.png"
   },
 
-  "permissions": ["storage", "notifications"],
+  "permissions": ["storage", "notifications", "tabs", "webRequest"],
 
   "host_permissions": ["https://www.neopets.com/*"]
 }

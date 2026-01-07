@@ -40,3 +40,14 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.activity img {
+  width: 48px;
+  height: 48px;
+  border: none;
+}
+
+.activity:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+}

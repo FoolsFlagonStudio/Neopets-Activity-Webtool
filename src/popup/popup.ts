@@ -170,14 +170,73 @@ function renderLinks(def: ActivityDefinitionLite): string {
   `;
 }
 
+function statusClass(activity: ActivityView, isReady: boolean): string {
+  if (isReady) return "text-success";
+
+  if (
+    activity.definition.timingType === "DAILY_LIMIT" &&
+    activity.state.usesToday !== undefined
+  ) {
+    return "text-warning";
+  }
+
+  return "text-muted";
+}
+
+function renderActivity(
+  activity: ActivityView,
+  allActivities: ActivityView[]
+): HTMLElement {
+  const col = document.createElement("div");
+  col.className = "col-3";
+
+  const effectiveState = resolveState(activity, allActivities);
+  const limitLabel = getLimitLabel(activity.definition, effectiveState);
+  const label = availabilityLabel(activity, limitLabel);
+
+  const isReady = activity.availability.status === "AVAILABLE";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "text-center small activity";
+  wrapper.dataset.activityId = activity.definition.id;
+
+  const img = document.createElement("img");
+  img.src = `../../assets/icons/${activity.definition.id}.png`;
+  img.className = "img-fluid rounded border";
+  img.alt = activity.definition.name;
+
+  const name = document.createElement("p");
+  name.className = "fw-semibold mb-0";
+  name.textContent = activity.definition.name;
+
+  const status = document.createElement("p");
+  status.className = `mb-0 ${statusClass(activity, isReady)}`;
+  status.textContent = label;
+
+  if (activity.definition.notes) {
+    wrapper.title = activity.definition.notes;
+  }
+
+  wrapper.append(img, name, status);
+  col.appendChild(wrapper);
+
+  const link = activity.definition.url ?? activity.definition.urls?.[0];
+  if (link) {
+    wrapper.style.cursor = "pointer";
+    wrapper.addEventListener("click", () => {
+      chrome.tabs.create({ url: link });
+    });
+  }
+
+  return col;
+}
+
 // ---------- Render ----------
 function render(activities: ActivityView[]): void {
   root.innerHTML = "";
 
   if (activities.length === 0) {
-    const li = document.createElement("li");
-    li.textContent = "No activities configured.";
-    root.appendChild(li);
+    root.innerHTML = `<p class="text-muted">No activities configured.</p>`;
     return;
   }
 
@@ -190,51 +249,22 @@ function render(activities: ActivityView[]): void {
   }
 
   for (const [category, items] of grouped.entries()) {
-    const header = document.createElement("li");
-    header.className = "category-header";
+    const section = document.createElement("section");
+    section.className = "mb-3";
+
+    const header = document.createElement("h5");
+    header.className = "text-muted";
     header.textContent = titleCase(category);
-    root.appendChild(header);
+
+    const row = document.createElement("div");
+    row.className = "row g-2";
 
     for (const activity of items) {
-      const li = document.createElement("li");
-      li.className = "activity-row";
-
-      const effectiveState = resolveState(activity, activities);
-      const limitLabel = getLimitLabel(activity.definition, effectiveState);
-      const label = availabilityLabel(activity, limitLabel);
-      const isReady = activity.availability.status === "AVAILABLE";
-
-      li.innerHTML = `
-        <div class="activity-main">
-          <div class="activity-title">
-            ${renderLinks(activity.definition)}
-            ${
-              activity.definition.notes
-                ? `<div class="note">${activity.definition.notes}</div>`
-                : ""
-            }
-          </div>
-          <span class="status ${isReady ? "ready" : "locked"}">
-            ${label}
-          </span>
-        </div>
-        <button type="button" ${isReady ? "" : "disabled"}>
-          Mark completed
-        </button>
-      `;
-
-      const btn = li.querySelector<HTMLButtonElement>("button");
-      if (btn && isReady) {
-        btn.addEventListener("click", () => {
-          chrome.runtime.sendMessage(
-            { type: "MARK_COMPLETED", activityId: activity.definition.id },
-            (_resp: MarkCompletedResponse) => loadActivities()
-          );
-        });
-      }
-
-      root.appendChild(li);
+      row.appendChild(renderActivity(activity, activities));
     }
+
+    section.append(header, row);
+    root.appendChild(section);
   }
 }
 

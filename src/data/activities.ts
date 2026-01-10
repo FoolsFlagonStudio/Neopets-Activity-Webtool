@@ -155,7 +155,7 @@ export const ACTIVITIES: ActivityDefinition[] = [
     urls: [
       "https://www.neopets.com/winter/kiosk.phtml",
       "https://www.neopets.com/halloween/scratch.phtml",
-      "https://www.neopets.com/desert/scratch.phtml",
+      "https://www.neopets.com/desert/sc/kiosk.phtml",
     ],
   },
   {
@@ -271,10 +271,7 @@ export const ACTIVITIES: ActivityDefinition[] = [
   {
     id: "qasalan_expellibox",
     name: "Qasalan Expellibox",
-    urls: [
-      "https://www.neopets.com/games/giveaway/giveaway_game.phtml",
-      "http://ncmall.neopets.com/games/giveaway/process_giveaway.phtml",
-    ],
+    url: "http://ncmall.neopets.com/games/giveaway/process_giveaway.phtml",
     category: "dailies",
     timingType: "COOLDOWN",
     cooldownMinutes: 8 * 60,
@@ -453,7 +450,8 @@ export const ACTIVITIES: ActivityDefinition[] = [
     name: "Wheel of Knowledge",
     url: "https://www.neopets.com/medieval/knowledge.phtml",
     category: "wheels",
-    timingType: "COOLDOWN",
+    timingType: "DAILY_LIMIT",
+    maxPerDay: 2,
     cooldownMinutes: 60,
     bufferMinutes: 5,
   },

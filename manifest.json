@@ -26,5 +26,9 @@
 
   "permissions": ["storage", "notifications", "tabs", "webRequest"],
 
-  "host_permissions": ["https://www.neopets.com/*"]
+  "host_permissions": [
+    "https://www.neopets.com/*",
+    "https://ncmall.neopets.com/*",
+    "http://ncmall.neopets.com/*"
+  ]
 }

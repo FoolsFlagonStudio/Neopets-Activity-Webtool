@@ -402,7 +402,10 @@ export function detectDailyCollect(): void {
       const text = getPageText();
 
       const attempted =
-        text.includes("you carefully walk in") || text.includes("rooooaarrr");
+        text.includes("you carefully walk in") ||
+        text.includes("rooooaarrr") ||
+        text.includes("The Snowager moves slightly in its sleep") ||
+        text.includes("The Snowager awakes");
 
       if (attempted) {
         console.log("[NAT] Snowager attempted");
@@ -458,25 +461,26 @@ export function detectDailyCollect(): void {
   }
 
   // ---------------- Grumpy Old King ----------------
-if (location.pathname.includes("/medieval/grumpyking.phtml")) {
-  if (!alreadyReported("grumpy_old_king")) {
-    const text = getPageText().toLowerCase();
+  if (location.pathname.includes("/medieval/grumpyking.phtml")) {
+    if (!alreadyReported("grumpy_old_king")) {
+      const text = getPageText().toLowerCase();
 
-    const completed =
-      text.includes("king skarl listens as you tell your joke");
+      const completed = text.includes(
+        "king skarl listens as you tell your joke"
+      );
 
-    if (completed) {
-      console.log("[NAT] Grumpy Old King joke submitted");
+      if (completed) {
+        console.log("[NAT] Grumpy Old King joke submitted");
 
-      chrome.runtime.sendMessage({
-        type: "AUTO_MARK_COMPLETED",
-        activityId: "grumpy_old_king",
-      });
+        chrome.runtime.sendMessage({
+          type: "AUTO_MARK_COMPLETED",
+          activityId: "grumpy_old_king",
+        });
 
-      markReported("grumpy_old_king");
+        markReported("grumpy_old_king");
+      }
     }
   }
-}
 
   // ---------------- Deserted Tomb ----------------
   if (
@@ -608,7 +612,8 @@ if (location.pathname.includes("/medieval/grumpyking.phtml")) {
         text.includes("nothing seems to make a neopet feel better") ||
         text.includes("seeing the poor discarded plushie") ||
         text.includes("while staring at the discarded plushie") ||
-        text.includes("the plushie remains ever silent");
+        text.includes("the plushie remains ever silent") ||
+        text.includes("There is no response from the plushie");
 
       if (completed) {
         console.log("[NAT] TDMBGPOP visited");

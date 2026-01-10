@@ -1,3 +1,5 @@
+import type { AvailabilityStatus } from "../background/availabilityEngine";
+
 /**
  * Activity timing models.
  * These MUST star in sync with DESIGN.md
@@ -41,6 +43,8 @@ export interface DailyResetActivity extends BaseActivityDefinition {
 export interface DailyLimitActivity extends BaseActivityDefinition {
   timingType: "DAILY_LIMIT";
   maxPerDay: number;
+  cooldownMinutes?: number;
+  bufferMinutes?: number;
   resetTimezone?: string;
   resetHour?: number;
 }
@@ -107,6 +111,7 @@ export interface ActivityState {
   notificationsEnabled: boolean; // Whether notifications are enabled for this activity
   lastNotifiedAt?: number;
   lastResetDay?: string;
+  lastAvailabilityStatus?: AvailabilityStatus;
 }
 
 /**

@@ -11,35 +11,36 @@ export function startScheduler(): void {
 async function checkAvailabilityAndNotify(): Promise<void> {
   const activities = await getAllActivitiesWithAvailability();
   const stateMap = await loadActivityState();
-  const now = Date.now();
+
+  const newlyReady: string[] = [];
 
   for (const activity of activities) {
     const { definition, availability } = activity;
     const state = stateMap[definition.id];
 
     if (!state?.enabled) continue;
+    if (!state.notificationsEnabled) continue;
 
-    // Only notify when it JUST became available
-    if (availability.status !== "AVAILABLE") continue;
+    const prev = state.lastAvailabilityStatus;
+    const curr = availability.status;
 
-    const lastCompleted = state.lastCompletedAt ?? 0;
-    const lastNotified = state.lastNotifiedAt ?? 0;
+    // ONLY notify on transition → AVAILABLE
+    if (prev !== "AVAILABLE" && curr === "AVAILABLE") {
+      newlyReady.push(definition.name);
+    }
 
-    // Must be:
-    // - completed previously
-    // - not already notified for this cycle
-    if (lastCompleted === 0) continue;
-    if (lastNotified > lastCompleted) continue;
-
-    notify(
-      `${definition.name} is ready`,
-      `You can do ${definition.name} again.`
-    );
-
+    // Always persist latest availability
     stateMap[definition.id] = {
       ...state,
-      lastNotifiedAt: now,
+      lastAvailabilityStatus: curr,
     };
+  }
+
+  if (newlyReady.length > 0) {
+    notify(
+      "Neopets Activities Ready",
+      newlyReady.map((n) => `• ${n}`).join("\n")
+    );
   }
 
   await saveActivityState(stateMap);

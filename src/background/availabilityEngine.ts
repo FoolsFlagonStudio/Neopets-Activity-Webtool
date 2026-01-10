@@ -86,11 +86,29 @@ export function computeAvailability(
     case "DAILY_LIMIT": {
       const uses = state.usesToday ?? 0;
 
-      if (uses < definition.maxPerDay) {
-        return { status: "AVAILABLE" };
+      // Hard daily cap
+      if (uses >= definition.maxPerDay) {
+        return { status: "LOCKED" };
       }
 
-      return { status: "LOCKED" };
+      // Optional cooldown between uses
+      if (definition.cooldownMinutes && state.lastCompletedAt) {
+        const cooldownMs =
+          (definition.cooldownMinutes + (definition.bufferMinutes ?? 0)) *
+          60 *
+          1000;
+
+        const remaining = state.lastCompletedAt + cooldownMs - now;
+
+        if (remaining > 0) {
+          return {
+            status: remaining < 5 * 60 * 1000 ? "SOON" : "LOCKED",
+            msUntilAvailable: remaining,
+          };
+        }
+      }
+
+      return { status: "AVAILABLE" };
     }
 
     case "COOLDOWN": {

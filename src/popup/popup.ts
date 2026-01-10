@@ -96,40 +96,49 @@ function availabilityLabel(
 ): string {
   const { availability, definition } = activity;
 
-  // Snowager special-case (time windows)
+  // -------- Special cases --------
   if (definition.id === "snowager" && availability.status === "AVAILABLE") {
     return "Check time window in notes";
   }
 
+  // Guess the Marrow & Wise Old King (no limits)
   if (
-    definition.id === "guess_the_marrow" &&
-    availability.status === "AVAILABLE"
-  ) {
-    return "Check regularly";
-  }
-
-  if (
-    definition.id === "wise_old_king" &&
+    (definition.id === "guess_the_marrow" ||
+      definition.id === "wise_old_king") &&
     availability.status === "AVAILABLE"
   ) {
     return "Check time window in notes";
   }
 
+  // Grumpy Old King (limited per day)
   if (
     definition.id === "grumpy_old_king" &&
     availability.status === "AVAILABLE"
   ) {
-    return "Check time window in notes";
+    return limitLabel
+      ? `Check time window in notes (${limitLabel})`
+      : "Check time window in notes";
   }
 
-  if (availability.status === "AVAILABLE") {
-    return limitLabel ? `Ready (${limitLabel})` : "Ready";
-  }
-
+  // -------- DAILY_LIMIT (with or without cooldown) --------
   if (limitLabel) {
+    if (availability.status === "AVAILABLE") {
+      return `Ready (${limitLabel})`;
+    }
+
+    if (availability.msUntilAvailable !== undefined) {
+      return `${formatDuration(availability.msUntilAvailable)} (${limitLabel})`;
+    }
+
     return `Done (${limitLabel})`;
   }
 
+  // -------- Plain AVAILABLE activities --------
+  if (availability.status === "AVAILABLE") {
+    return "Ready";
+  }
+
+  // -------- Cooldowns --------
   if (
     availability.msUntilAvailable !== undefined &&
     availability.msUntilAvailable < 24 * 60 * 60 * 1000

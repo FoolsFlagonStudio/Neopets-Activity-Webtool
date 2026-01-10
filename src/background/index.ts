@@ -100,6 +100,36 @@ chrome.webRequest.onCompleted.addListener(
   }
 );
 
+chrome.webRequest.onCompleted.addListener(
+  async (details) => {
+    if (
+      details.url.includes(
+        "ncmall.neopets.com/games/giveaway/process_giveaway.phtml"
+      )
+    ) {
+      console.log("[NAT] Qasalan Expellibox detected via auto-play URL");
+
+      const stateMap = await loadActivityState();
+      const existing = stateMap["qasalan_expellibox"] ?? {
+        enabled: true,
+        notificationsEnabled: false,
+      };
+
+      stateMap["qasalan_expellibox"] = {
+        ...existing,
+        lastCompletedAt: Date.now(),
+        notificationsEnabled: true,
+        lastAvailabilityStatus: "LOCKED",
+      };
+
+      await saveActivityState(stateMap);
+    }
+  },
+  {
+    urls: ["*://ncmall.neopets.com/games/giveaway/process_giveaway.phtml*"],
+  }
+);
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // -------- GET ACTIVITIES --------
   if (message?.type === "GET_ACTIVITIES") {
@@ -172,12 +202,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const existing = stateMap[activityId] ?? {
         enabled: true,
         notificationsEnabled: false,
+        usesToday: 0,
       };
 
-      stateMap[activityId] = {
-        ...existing,
-        lastCompletedAt: Date.now(),
-      };
+      const definition = ACTIVITIES.find((a) => a.id === activityId);
+      if (!definition) return;
+
+      // DAILY_LIMIT (wheels like Knowledge, Mediocrity, etc.)
+      if (definition.timingType === "DAILY_LIMIT") {
+        stateMap[activityId] = {
+          ...existing,
+          usesToday: (existing.usesToday ?? 0) + 1,
+          lastCompletedAt: Date.now(),
+          notificationsEnabled: true,
+          lastAvailabilityStatus: "LOCKED",
+        };
+      } else {
+        // Everything else
+        stateMap[activityId] = {
+          ...existing,
+          lastCompletedAt: Date.now(),
+          notificationsEnabled: true,
+          lastAvailabilityStatus: "LOCKED",
+        };
+      }
 
       saveActivityState(stateMap).then(() => {
         sendResponse({ success: true });

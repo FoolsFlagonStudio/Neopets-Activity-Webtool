@@ -1,4 +1,5 @@
 import { Activity, ActivityState } from "../types/activity";
+import { getDateKeyInTimezone } from "../utils/npt";
 
 const STORAGE_KEY = "activityState";
 
@@ -10,11 +11,38 @@ export async function loadActivityState(): Promise<
     chrome.storage.local.get(
       [STORAGE_KEY],
       (result: { [key: string]: unknown }) => {
-        const stored = result[STORAGE_KEY] as
-          | Record<string, ActivityState>
-          | undefined;
+        const stored =
+          (result[STORAGE_KEY] as Record<string, ActivityState>) ?? {};
 
-        resolve(stored ?? ({} as Record<string, ActivityState>));
+        const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
+
+        let mutated = false;
+
+        for (const state of Object.values(stored)) {
+          if (state.usesToday == null) {
+            state.usesToday = 0;
+          }
+
+          // Reset DAILY_LIMIT usage at day boundary
+          if (state.lastResetDay !== today) {
+            if (state.usesToday && state.usesToday !== 0) {
+              state.usesToday = 0;
+              mutated = true;
+            }
+
+            state.lastResetDay = today;
+            mutated = true;
+          }
+        }
+
+        // Persist reset only if needed
+        if (mutated) {
+          chrome.storage.local.set({ [STORAGE_KEY]: stored }, () => {
+            resolve(stored);
+          });
+        } else {
+          resolve(stored);
+        }
       }
     );
   });

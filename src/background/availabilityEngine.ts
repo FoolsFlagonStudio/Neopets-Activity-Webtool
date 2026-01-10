@@ -53,6 +53,17 @@ export function computeAvailability(
 ): AvailabilityResult {
   const { definition, state } = activity;
 
+  // Enforce daily limit first (even if cooldown exists)
+  if (
+    definition.timingType === "DAILY_LIMIT" &&
+    typeof definition.maxPerDay === "number"
+  ) {
+    const uses = state.usesToday ?? 0;
+    if (uses >= definition.maxPerDay) {
+      return { status: "LOCKED" };
+    }
+  }
+
   switch (definition.timingType) {
     case "DAILY_RESET": {
       if (!state.lastCompletedAt) {

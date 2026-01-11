@@ -15,8 +15,6 @@ chrome.runtime.onStartup.addListener(() => {
   startScheduler();
 });
 
-console.log("[Neopets Activity Tracker] Background service worker loaded");
-
 // ---------------- Message Handler ----------------
 
 chrome.webRequest.onCompleted.addListener(
@@ -282,6 +280,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         ...existing,
         lastCompletedAt: availableAt,
       };
+
+      saveActivityState(stateMap).then(() => {
+        sendResponse({ success: true });
+      });
+    });
+
+    return true;
+  }
+
+  if (message?.type === "AUTO_MARK_LOCKED") {
+    const { activityId } = message;
+
+    loadActivityState().then((stateMap) => {
+      const existing = stateMap[activityId] ?? {
+        enabled: true,
+        notificationsEnabled: false,
+        usesToday: 0,
+      };
+
+      const definition = ACTIVITIES.find((a) => a.id === activityId);
+      if (!definition) return;
+
+      // Force activity to max usage for today
+      if (definition.timingType === "DAILY_LIMIT") {
+        stateMap[activityId] = {
+          ...existing,
+          usesToday: definition.maxPerDay ?? existing.usesToday ?? 0,
+          lastCompletedAt: Date.now(),
+        };
+      } else {
+        // Fallback: treat as completed today
+        stateMap[activityId] = {
+          ...existing,
+          lastCompletedAt: Date.now(),
+        };
+      }
 
       saveActivityState(stateMap).then(() => {
         sendResponse({ success: true });

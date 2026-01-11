@@ -333,23 +333,19 @@ export function detectDailyCollect(): void {
     location.pathname.includes("/halloween/scratch.phtml") ||
     location.pathname.includes("/desert/scratch.phtml")
   ) {
-    if (!alreadyReported("scratchcards")) {
-      const text = getPageText();
+    const text = getPageText();
 
-      const bought =
-        text.includes("thanks for buying a scratchcard") ||
-        text.includes("thanksss for buying a ssscratchcard");
+    const bought =
+      text.includes("thanks for buying a scratchcard") ||
+      text.includes("thanksss for buying a ssscratchcard");
 
-      if (bought) {
-        console.log("[NAT] Scratchcard purchased");
+    if (bought) {
+      console.log("[NAT] Scratchcard purchased");
 
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "scratchcards",
-        });
-
-        markReported("scratchcards");
-      }
+      chrome.runtime.sendMessage({
+        type: "AUTO_MARK_COMPLETED",
+        activityId: "scratchcard_shared",
+      });
     }
   }
 
@@ -462,23 +458,28 @@ export function detectDailyCollect(): void {
 
   // ---------------- Grumpy Old King ----------------
   if (location.pathname.includes("/medieval/grumpyking.phtml")) {
-    if (!alreadyReported("grumpy_old_king")) {
-      const text = getPageText().toLowerCase();
+    const text = getPageText().toLowerCase();
 
-      const completed = text.includes(
-        "king skarl listens as you tell your joke"
-      );
+    const success = text.includes("king skarl listens as you tell your joke");
 
-      if (completed) {
-        console.log("[NAT] Grumpy Old King joke submitted");
+    const hardLocked = text.includes("you've already told me a joke today");
 
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "grumpy_old_king",
-        });
+    if (success) {
+      console.log("[NAT] Grumpy Old King joke submitted");
 
-        markReported("grumpy_old_king");
-      }
+      chrome.runtime.sendMessage({
+        type: "AUTO_MARK_COMPLETED",
+        activityId: "grumpy_old_king",
+      });
+    }
+
+    if (hardLocked) {
+      console.log("[NAT] Grumpy Old King already completed today");
+
+      chrome.runtime.sendMessage({
+        type: "AUTO_MARK_LOCKED",
+        activityId: "grumpy_old_king",
+      });
     }
   }
 

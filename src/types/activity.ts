@@ -22,12 +22,18 @@ export type TimingType =
 export interface BaseActivityDefinition {
   id: string; // stable unique identifier
   name: string; // readable name shown in UI
-  url?: string; // primary url for activity
-  urls?: string[];
+  links?: ActivityLink[];
   category: string; // used for grouping in ui; "wheels", "dailies", etc.
   timingType: TimingType;
   sharedWith?: string;
   notes?: string; // Optinoal descriptive notes
+}
+
+interface ActivityLink {
+  label: string; // What the user sees
+  url: string; // Where it goes
+  kind?: "action" | "helper" | "external";
+  tooltip?: string; // Optional hover text
 }
 
 /* ─────────────────────────────────────────────── */

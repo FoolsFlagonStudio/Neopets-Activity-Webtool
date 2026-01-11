@@ -44,6 +44,7 @@ export const WHEEL_RESULT_PHRASES: Record<string, string[]> = {
     "You found an avatar!",
     "Well, it could have been worse, right?",
     "You win a free spin",
+    "you've already spun this wheel today",
   ],
   wheel_of_excitement: [
     "Darn. Well, you win some, you lose some.",

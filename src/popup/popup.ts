@@ -1,3 +1,5 @@
+import type { BaseActivityDefinition } from "../types/activity";
+
 type AvailabilityStatus = "AVAILABLE" | "LOCKED" | "SOON";
 
 interface AvailabilityResult {
@@ -9,19 +11,8 @@ interface ActivityStateLite {
   usesToday?: number;
 }
 
-interface ActivityDefinitionLite {
-  id: string;
-  name: string;
-  url?: string;
-  urls?: string[];
-  category: string;
-  timingType?: "DAILY_RESET" | "DAILY_LIMIT" | "COOLDOWN";
-  maxPerDay?: number;
-  notes?: string;
-}
-
 interface ActivityView {
-  definition: ActivityDefinitionLite;
+  definition: BaseActivityDefinition;
   state: ActivityStateLite;
   availability: AvailabilityResult;
 }
@@ -33,6 +24,15 @@ interface GetActivitiesResponse {
 interface MarkCompletedResponse {
   success: boolean;
 }
+
+const CATEGORY_ORDER = [
+  "wheels",
+  "dailies",
+  "games",
+  "adventures",
+  "misc",
+  "utilities",
+] as const;
 
 function resolveState(
   activity: ActivityView,
@@ -67,16 +67,22 @@ function titleCase(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function getPrimaryLink(def: BaseActivityDefinition): string | null {
+  return def.links?.find((l) => l.kind === "action")?.url ?? null;
+}
+
 // ---------- DAILY_LIMIT label helper ----------
 function getLimitLabel(
-  definition: ActivityDefinitionLite,
+  definition: BaseActivityDefinition,
   state: ActivityStateLite
 ): string | null {
   if (definition.timingType !== "DAILY_LIMIT") return null;
-  if (typeof definition.maxPerDay !== "number") return null;
+
+  // Narrowing happens here
+  if (typeof (definition as any).maxPerDay !== "number") return null;
 
   const used = state.usesToday ?? 0;
-  return `${used} / ${definition.maxPerDay}`;
+  return `${used} / ${(definition as any).maxPerDay}`;
 }
 
 // ---------- Time formatting ----------
@@ -154,30 +160,35 @@ function availabilityLabel(
 }
 
 // ---------- Link rendering ----------
-function renderLinks(def: ActivityDefinitionLite): string {
-  const links = def.urls ?? (def.url ? [def.url] : []);
+// function renderLinks(def: BaseActivityDefinition): string {
+//   const links =
+//     def.links ??
+//     (def.url
+//       ? [{ label: def.name, url: def.url, kind: "action" as const }]
+//       : []);
 
-  if (links.length === 0) return "";
+//   if (!links.length) return "";
 
-  if (links.length === 1) {
-    return `
-      <a href="${links[0]}" target="_blank" rel="noreferrer">
-        ${def.name}
-      </a>
-    `;
-  }
-
-  return `
-    <div class="multi-links">
-      ${links
-        .map((u) => {
-          const label = new URL(u).pathname.split("/")[1] ?? "link";
-          return `<a href="${u}" target="_blank" rel="noreferrer">${label}</a>`;
-        })
-        .join(" · ")}
-    </div>
-  `;
-}
+//   return `
+//     <div class="activity-links">
+//       ${links
+//         .map(
+//           (l) => `
+//             <a
+//               href="${l.url}"
+//               target="_blank"
+//               title="${l.tooltip ?? ""}"
+//               class="link-${l.kind ?? "action"}"
+//               onclick="event.stopPropagation()"
+//             >
+//               ${l.label}
+//             </a>
+//           `
+//         )
+//         .join(" · ")}
+//     </div>
+//   `;
+// }
 
 function statusClass(activity: ActivityView, isReady: boolean): string {
   if (isReady) return "text-success";
@@ -210,7 +221,7 @@ function renderActivity(
   wrapper.dataset.activityId = activity.definition.id;
 
   const img = document.createElement("img");
-  img.src = `../../assets/icons/${activity.definition.id}.png`;
+  img.src = `../../assets/icons/activities/${activity.definition.id}.png`;
   img.className = "img-fluid rounded border";
   img.alt = activity.definition.name;
 
@@ -229,12 +240,54 @@ function renderActivity(
   wrapper.append(img, name, status);
   col.appendChild(wrapper);
 
-  const link = activity.definition.url ?? activity.definition.urls?.[0];
-  if (link) {
+  const primaryLink = getPrimaryLink(activity.definition);
+  if (primaryLink) {
     wrapper.style.cursor = "pointer";
-    wrapper.addEventListener("click", () => {
-      chrome.tabs.create({ url: link });
+    wrapper.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+
+      if (
+        target.closest("a") ||
+        target.closest(".activity-info") ||
+        target.closest(".activity-tooltip")
+      ) {
+        return;
+      }
+
+      chrome.tabs.create({ url: primaryLink });
     });
+  }
+
+  const secondaryLinks =
+    activity.definition.links?.filter((l) => l.kind !== "action") ?? [];
+
+  if (secondaryLinks.length > 0) {
+    wrapper.style.position = "relative";
+
+    const info = document.createElement("div");
+    info.className = "activity-info";
+    info.textContent = "ⓘ";
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "activity-tooltip";
+
+    tooltip.innerHTML = secondaryLinks
+      .map(
+        (l) => `
+        <a
+          href="${l.url}"
+          target="_blank"
+          title="${l.tooltip ?? ""}"
+          onclick="event.stopPropagation()"
+        >
+          ${l.label}
+        </a>
+      `
+      )
+      .join("<br>");
+
+    info.appendChild(tooltip);
+    wrapper.appendChild(info);
   }
 
   return col;
@@ -252,17 +305,22 @@ function render(activities: ActivityView[]): void {
   const grouped = new Map<string, ActivityView[]>();
 
   for (const activity of activities) {
-    const cat = activity.definition.category;
-    if (!grouped.has(cat)) grouped.set(cat, []);
-    grouped.get(cat)!.push(activity);
+    if (activity.definition.id === "scratchcard_shared") continue;
+
+    const category = activity.definition.category;
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category)!.push(activity);
   }
 
-  for (const [category, items] of grouped.entries()) {
+  for (const category of CATEGORY_ORDER) {
+    const items = grouped.get(category);
+    if (!items || items.length === 0) continue;
+
     const section = document.createElement("section");
     section.className = "mb-3";
 
     const header = document.createElement("h5");
-    header.className = "text-muted";
+    header.className = "category-header text-muted";
     header.textContent = titleCase(category);
 
     const row = document.createElement("div");

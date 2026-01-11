@@ -21,7 +21,10 @@
     }
   ],
   "icons": {
-    "128": "assets/icons/icon128.png"
+    "16": "assets/icons/branding/16x16.png",
+    "32": "assets/icons/branding/32x32.png",
+    "48": "assets/icons/branding/48x48.png",
+    "128": "assets/icons/branding/128x128.png"
   },
 
   "permissions": ["storage", "notifications", "tabs", "webRequest"],

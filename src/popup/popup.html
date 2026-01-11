@@ -3,17 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <title>Neopets Activity Tracker</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
     <link rel="stylesheet" href="popup.css" />
   </head>
-  <body>
-    <header>
-      <h1>Neopets Activity Tracker</h1>
-    </header>
-    <main>
-      <ul id="activity-list"></ul>
-    </main>
-    <footer></footer>
 
-    <script type="module" src="../../dist/popup.js"></script>
+  <body>
+    <div class="popup-nav">
+      <button data-page="activities">Activities</button>
+      <button data-page="info">Info</button>
+    </div>
+
+    <main id="page-container"></main>
+
+    <script type="module" src="../../dist/nav.js"></script>
   </body>
 </html>

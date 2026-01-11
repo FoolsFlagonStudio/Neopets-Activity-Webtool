@@ -2,44 +2,56 @@ import { getAllActivitiesWithAvailability } from "./availabilityEngine";
 import { loadActivityState, saveActivityState } from "./stateManager";
 import { notify } from "./notifications";
 
-const CHECK_INTERVAL_MS = 60_000;
+const ALARM_NAME = "nat-availability-check";
+const CHECK_INTERVAL_MINUTES = 1;
 
 export function startScheduler(): void {
-  setInterval(checkAvailabilityAndNotify, CHECK_INTERVAL_MS);
+  chrome.alarms.get(ALARM_NAME, (existing) => {
+    if (existing) return;
+
+    chrome.alarms.create(ALARM_NAME, {
+      periodInMinutes: CHECK_INTERVAL_MINUTES,
+    });
+  });
 }
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== ALARM_NAME) return;
+  checkAvailabilityAndNotify();
+});
 
 async function checkAvailabilityAndNotify(): Promise<void> {
   const activities = await getAllActivitiesWithAvailability();
   const stateMap = await loadActivityState();
-  const now = Date.now();
+
+  const newlyReady: string[] = [];
 
   for (const activity of activities) {
     const { definition, availability } = activity;
     const state = stateMap[definition.id];
 
-    if (!state?.enabled) continue;
+    if (!state?.enabled || !state.notificationsEnabled) continue;
 
-    // Only notify when it JUST became available
-    if (availability.status !== "AVAILABLE") continue;
+    const prev = state.lastAvailabilityStatus;
+    const curr = availability.status;
 
-    const lastCompleted = state.lastCompletedAt ?? 0;
-    const lastNotified = state.lastNotifiedAt ?? 0;
-
-    // Must be:
-    // - completed previously
-    // - not already notified for this cycle
-    if (lastCompleted === 0) continue;
-    if (lastNotified > lastCompleted) continue;
-
-    notify(
-      `${definition.name} is ready`,
-      `You can do ${definition.name} again.`
-    );
+    if (prev !== "AVAILABLE" && curr === "AVAILABLE") {
+      newlyReady.push(definition.name);
+    }
 
     stateMap[definition.id] = {
       ...state,
-      lastNotifiedAt: now,
+      lastAvailabilityStatus: curr,
     };
+  }
+
+  if (newlyReady.length > 0) {
+    notify(
+      newlyReady.length === 1
+        ? "Neopets Activity Ready"
+        : "Neopets Activities Ready",
+      newlyReady.map((n) => `• ${n}`).join("\n")
+    );
   }
 
   await saveActivityState(stateMap);

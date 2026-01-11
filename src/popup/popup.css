@@ -4,6 +4,7 @@ body {
 
 .category-header {
   margin-top: 10px;
+  padding-left: 0.5rem;
   font-weight: bold;
   text-transform: uppercase;
   font-size: 11px;
@@ -39,4 +40,120 @@ body {
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.category-header {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.activity {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.activity img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.activity p.fw-semibold {
+  line-height: 1.2;
+  min-height: 2em; /* locks name to 2 lines max */
+  margin-bottom: 2px;
+}
+
+.activity p.mb-0 {
+  min-height: 1.2em;
+}
+
+.activity:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+}
+
+.activity-info {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 1.25rem;
+  cursor: help;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.activity-info:hover {
+  opacity: 1;
+}
+
+.activity-tooltip {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 16px;
+  background: #ffffff;
+  border: 1px solid #ccc;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.activity-info:hover .activity-tooltip {
+  display: block;
+}
+
+.activity-tooltip a {
+  display: block;
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+.activity-tooltip a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Navigation ---------- */
+
+.popup-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.nav-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.nav-tab:hover {
+  background: #f3f4f6;
+}
+
+.nav-tab.active {
+  color: #111827;
+  background: #f9fafb;
+  border-color: #e5e7eb;
 }

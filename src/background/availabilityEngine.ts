@@ -5,6 +5,7 @@ import {
 } from "./../types/activity";
 import { ACTIVITIES } from "../data/activities";
 import { loadActivityState } from "./stateManager";
+import { getDateKeyInTimezone } from "../utils/npt";
 
 /**
  * Returns all activities with computed availability
@@ -52,22 +53,62 @@ export function computeAvailability(
 ): AvailabilityResult {
   const { definition, state } = activity;
 
+  // Enforce daily limit first (even if cooldown exists)
+  if (
+    definition.timingType === "DAILY_LIMIT" &&
+    typeof definition.maxPerDay === "number"
+  ) {
+    const uses = state.usesToday ?? 0;
+    if (uses >= definition.maxPerDay) {
+      return { status: "LOCKED" };
+    }
+  }
+
   switch (definition.timingType) {
     case "DAILY_RESET": {
       if (!state.lastCompletedAt) {
         return { status: "AVAILABLE" };
       }
+
+      const timeZone = definition.resetTimezone ?? "America/Los_Angeles";
+
+      const lastDoneDay = getDateKeyInTimezone(state.lastCompletedAt, timeZone);
+
+      const today = getDateKeyInTimezone(now, timeZone);
+
+      if (lastDoneDay !== today) {
+        return { status: "AVAILABLE" };
+      }
+
       return { status: "LOCKED" };
     }
 
     case "DAILY_LIMIT": {
       const uses = state.usesToday ?? 0;
 
-      if (uses < definition.maxPerDay) {
-        return { status: "AVAILABLE" };
+      // Hard daily cap
+      if (uses >= definition.maxPerDay) {
+        return { status: "LOCKED" };
       }
 
-      return { status: "LOCKED" };
+      // Optional cooldown between uses
+      if (definition.cooldownMinutes && state.lastCompletedAt) {
+        const cooldownMs =
+          (definition.cooldownMinutes + (definition.bufferMinutes ?? 0)) *
+          60 *
+          1000;
+
+        const remaining = state.lastCompletedAt + cooldownMs - now;
+
+        if (remaining > 0) {
+          return {
+            status: remaining < 5 * 60 * 1000 ? "SOON" : "LOCKED",
+            msUntilAvailable: remaining,
+          };
+        }
+      }
+
+      return { status: "AVAILABLE" };
     }
 
     case "COOLDOWN": {
@@ -99,6 +140,57 @@ export function computeAvailability(
 
     case "CONDITIONAL": {
       return state.enabled ? { status: "AVAILABLE" } : { status: "LOCKED" };
+    }
+
+    case "STATIC": {
+      return { status: "AVAILABLE" };
+    }
+
+    case "MONTHLY_RESET": {
+      if (!state.lastCompletedAt) {
+        return { status: "AVAILABLE" };
+      }
+
+      const tz = "America/Los_Angeles";
+
+      const last = new Date(getDateKeyInTimezone(state.lastCompletedAt, tz));
+      const nowDate = new Date(getDateKeyInTimezone(now, tz));
+
+      const sameMonth =
+        last.getUTCFullYear() === nowDate.getUTCFullYear() &&
+        last.getUTCMonth() === nowDate.getUTCMonth();
+
+      if (!sameMonth) {
+        return { status: "AVAILABLE" };
+      }
+
+      // Compute next month 1st at 00:00 NPT
+      const nextMonth = new Date(now);
+      nextMonth.setUTCDate(1);
+      nextMonth.setUTCMonth(nowDate.getUTCMonth() + 1);
+      nextMonth.setUTCHours(8, 0, 0, 0); // midnight PST = 08:00 UTC
+
+      return {
+        status: "LOCKED",
+        msUntilAvailable: nextMonth.getTime() - now,
+      };
+    }
+
+    case "VARIABLE_COOLDOWN": {
+      if (!state.lastCompletedAt) {
+        return { status: "AVAILABLE" };
+      }
+
+      const remaining = state.lastCompletedAt - now;
+
+      if (remaining <= 0) {
+        return { status: "AVAILABLE" };
+      }
+
+      return {
+        status: remaining < 5 * 60 * 1000 ? "SOON" : "LOCKED",
+        msUntilAvailable: remaining,
+      };
     }
 
     default:

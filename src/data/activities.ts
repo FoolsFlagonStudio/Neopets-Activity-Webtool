@@ -795,7 +795,8 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "wheel_of_extravagance",
     name: "Wheel of Extravagance",
     category: "wheels",
-    timingType: "COOLDOWN",
+    timingType: "DAILY_LIMIT",
+    maxPerDay: 2,
     cooldownMinutes: 360,
     bufferMinutes: 10,
     links: [

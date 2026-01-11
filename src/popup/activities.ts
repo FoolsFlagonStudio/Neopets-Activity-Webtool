@@ -58,10 +58,10 @@ function assertElement<T extends Element>(el: T | null, msg: string): T {
   return el;
 }
 
-const root = assertElement(
-  document.getElementById("activity-list"),
-  "Missing #activity-list"
-);
+// const root = assertElement(
+//   document.getElementById("activity-list"),
+//   "Missing #activity-list"
+// );
 
 function titleCase(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
@@ -279,7 +279,7 @@ function renderActivity(
 }
 
 // ---------- Render ----------
-function render(activities: ActivityView[]): void {
+function render(activities: ActivityView[], root: HTMLElement): void {
   root.innerHTML = "";
 
   if (activities.length === 0) {
@@ -321,37 +321,48 @@ function render(activities: ActivityView[]): void {
 }
 
 // ---------- Load ----------
-function loadActivities(): void {
+// function loadActivities(): void {
+//   chrome.runtime.sendMessage(
+//     { type: "GET_ACTIVITIES" },
+//     (response: GetActivitiesResponse | undefined) => {
+//       render(response?.activities ?? []);
+//     }
+//   );
+// }
+
+// loadActivities();
+// const container = document.getElementById("page-container")!;
+
+// async function loadPage(page: string) {
+//   const res = await fetch(`./${page}.html`);
+//   container.innerHTML = await res.text();
+
+//   if (page === "activities") {
+//     loadActivities(); // your existing function
+//   }
+// }
+
+// function setupNavigation() {
+//   document
+//     .querySelectorAll<HTMLButtonElement>(".popup-nav button")
+//     .forEach((btn) => {
+//       btn.addEventListener("click", () => {
+//         loadPage(btn.dataset.page!);
+//       });
+//     });
+// }
+
+export function initActivitiesPage() {
+  const root = document.getElementById("activity-list");
+  if (!root) {
+    console.warn("[NAT] activity-list not found");
+    return;
+  }
+
   chrome.runtime.sendMessage(
     { type: "GET_ACTIVITIES" },
     (response: GetActivitiesResponse | undefined) => {
-      render(response?.activities ?? []);
+      render(response?.activities ?? [], root);
     }
   );
 }
-
-// loadActivities();
-const container = document.getElementById("page-container")!;
-
-async function loadPage(page: string) {
-  const res = await fetch(`./${page}.html`);
-  container.innerHTML = await res.text();
-
-  if (page === "activities") {
-    loadActivities(); // your existing function
-  }
-}
-
-function setupNavigation() {
-  document
-    .querySelectorAll<HTMLButtonElement>(".popup-nav button")
-    .forEach((btn) => {
-      btn.addEventListener("click", () => {
-        loadPage(btn.dataset.page!);
-      });
-    });
-}
-
-// init
-setupNavigation();
-loadPage("activities");

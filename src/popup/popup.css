@@ -4,6 +4,7 @@ body {
 
 .category-header {
   margin-top: 10px;
+  padding-left: 0.5rem;
   font-weight: bold;
   text-transform: uppercase;
   font-size: 11px;
@@ -120,4 +121,39 @@ button:disabled {
 
 .activity-tooltip a:hover {
   text-decoration: underline;
+}
+
+/* ---------- Navigation ---------- */
+
+.popup-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.nav-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.nav-tab:hover {
+  background: #f3f4f6;
+}
+
+.nav-tab.active {
+  color: #111827;
+  background: #f9fafb;
+  border-color: #e5e7eb;
 }

@@ -7,7 +7,6 @@ import { getDateKeyInTimezone } from "../utils/npt";
 // ---------------- Lifecycle ----------------
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("[Neopets Activity Tracker] Installed");
   startScheduler();
 });
 
@@ -320,6 +319,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       saveActivityState(stateMap).then(() => {
         sendResponse({ success: true });
       });
+    });
+
+    return true;
+  }
+
+  // DEV ONLY — force an activity to AVAILABLE
+  if (message?.type === "DEV_FORCE_AVAILABLE") {
+    const { activityId } = message;
+
+    loadActivityState().then(async (stateMap) => {
+      const existing = stateMap[activityId];
+      if (!existing) return;
+
+      stateMap[activityId] = {
+        ...existing,
+        lastAvailabilityStatus: "LOCKED", // force transition
+        notificationsEnabled: true,
+        lastCompletedAt: Date.now() - 10_000_000, // safely in the past
+      };
+
+      await saveActivityState(stateMap);
+
+      sendResponse({ success: true });
     });
 
     return true;

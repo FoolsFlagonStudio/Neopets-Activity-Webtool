@@ -7,6 +7,11 @@ function isPopupDisplayed(): boolean {
   return !!popup && popup.style.display !== "none";
 }
 
+function pageIncludesAny(texts: string[]): boolean {
+  const pageText = document.body.textContent?.toLowerCase() ?? "";
+  return texts.some((t) => pageText.includes(t.toLowerCase()));
+}
+
 function hasWheelResultContent(): boolean {
   const success = document.getElementById("responseDisplaySuccess");
   const fail = document.getElementById("responseDisplayFail");
@@ -27,13 +32,19 @@ export function detectWheels(): void {
     if (!location.pathname.includes(config.pathMatch)) continue;
 
     const sessionKey = `wheel_detected_${config.activityId}`;
-    if (sessionStorage.getItem(sessionKey) === "1") continue;
+    const max = config.maxPerSession ?? 1;
+    const count = Number(sessionStorage.getItem(sessionKey) ?? 0);
 
+    if (count >= max) continue;
     if (!isPopupDisplayed()) continue;
 
-    const confirmed = config.requiresPrizeName
+    let confirmed = config.requiresPrizeName
       ? hasPrizeName()
       : hasWheelResultContent();
+
+    if (!confirmed && config.alsoCountIfTextIncludes) {
+      confirmed = pageIncludesAny(config.alsoCountIfTextIncludes);
+    }
 
     if (!confirmed) continue;
 
@@ -42,6 +53,6 @@ export function detectWheels(): void {
       activityId: config.activityId,
     });
 
-    sessionStorage.setItem(sessionKey, "1");
+    sessionStorage.setItem(sessionKey, String(count + 1));
   }
 }

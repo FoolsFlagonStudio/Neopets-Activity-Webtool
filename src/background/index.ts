@@ -1,5 +1,10 @@
 import { ACTIVITIES } from "../data/activities.js";
-import { loadActivityState, saveActivityState } from "./stateManager.js";
+import { loadActivityState } from "./stateManager.js";
+import {
+  updateActivityState,
+  markCompleted,
+  incrementUse,
+} from "./stateUpdates.js";
 import { computeAvailability } from "./availabilityEngine.js";
 import { startScheduler } from "./scheduler";
 import { getDateKeyInTimezone } from "../utils/npt";
@@ -16,115 +21,62 @@ chrome.runtime.onStartup.addListener(() => {
 
 // ---------------- Message Handler ----------------
 
-chrome.webRequest.onCompleted.addListener(
-  async (details) => {
-    if (details.url.includes("/halloween/process_bagatelle.phtml")) {
-      console.log("[NAT] Bagatelle detected via webRequest");
+type WebRequestTracker = {
+  activityId: string;
+  match: string;
+  requires?: (url: string) => boolean;
+  mode: "increment" | "complete";
+};
 
-      const stateMap = await loadActivityState();
-      const existing = stateMap["bagatelle"] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
-
-      stateMap["bagatelle"] = {
-        ...existing,
-        lastCompletedAt: Date.now(),
-        usesToday: (existing.usesToday ?? 0) + 1,
-      };
-
-      await saveActivityState(stateMap);
-    }
+export const WEB_REQUEST_TRACKERS: WebRequestTracker[] = [
+  {
+    activityId: "bagatelle",
+    match: "/halloween/process_bagatelle.phtml",
+    mode: "increment",
   },
   {
-    urls: ["https://www.neopets.com/halloween/process_bagatelle.phtml*"],
-  }
-);
-
-chrome.webRequest.onCompleted.addListener(
-  async (details) => {
-    if (details.url.includes("/halloween/process_corkgun.phtml")) {
-      console.log("[NAT] Cork Gun Gallery detected via webRequest");
-
-      const stateMap = await loadActivityState();
-      const existing = stateMap["cork_gun_gallery"] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
-
-      stateMap["cork_gun_gallery"] = {
-        ...existing,
-        lastCompletedAt: Date.now(),
-        usesToday: (existing.usesToday ?? 0) + 1,
-      };
-
-      await saveActivityState(stateMap);
-    }
+    activityId: "cork_gun_gallery",
+    match: "/halloween/process_corkgun.phtml",
+    mode: "increment",
   },
   {
-    urls: ["https://www.neopets.com/halloween/process_corkgun.phtml*"],
-  }
-);
+    activityId: "coconut_shy",
+    match: "/halloween/process_cocoshy.phtml",
+    mode: "increment",
+    requires: (url) => url.includes("coconut="),
+  },
+  {
+    activityId: "qasalan_expellibox",
+    match: "ncmall.neopets.com/games/giveaway/process_giveaway.phtml",
+    mode: "complete",
+  },
+];
 
 chrome.webRequest.onCompleted.addListener(
   async (details) => {
-    if (
-      details.url.includes("/halloween/process_cocoshy.phtml") &&
-      details.url.includes("coconut=")
-    ) {
-      console.log("[NAT] Coconut Shy play detected via webRequest");
+    for (const tracker of WEB_REQUEST_TRACKERS) {
+      if (!details.url.includes(tracker.match)) continue;
+      if (tracker.requires && !tracker.requires(details.url)) continue;
 
-      const stateMap = await loadActivityState();
-      const existing = stateMap["coconut_shy"] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
+      await updateActivityState(tracker.activityId, (existing) => {
+        if (tracker.mode === "increment") {
+          return {
+            ...existing,
+            usesToday: (existing.usesToday ?? 0) + 1,
+            lastCompletedAt: Date.now(),
+          };
+        }
 
-      stateMap["coconut_shy"] = {
-        ...existing,
-        lastCompletedAt: Date.now(),
-        usesToday: (existing.usesToday ?? 0) + 1,
-      };
-
-      await saveActivityState(stateMap);
+        return {
+          ...existing,
+          lastCompletedAt: Date.now(),
+          notificationsEnabled: true,
+          lastAvailabilityStatus: "LOCKED",
+        };
+      });
     }
   },
-  {
-    urls: ["https://www.neopets.com/halloween/process_cocoshy.phtml*"],
-  }
-);
-
-chrome.webRequest.onCompleted.addListener(
-  async (details) => {
-    if (
-      details.url.includes(
-        "ncmall.neopets.com/games/giveaway/process_giveaway.phtml"
-      )
-    ) {
-      console.log("[NAT] Qasalan Expellibox detected via auto-play URL");
-
-      const stateMap = await loadActivityState();
-      const existing = stateMap["qasalan_expellibox"] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-      };
-
-      stateMap["qasalan_expellibox"] = {
-        ...existing,
-        lastCompletedAt: Date.now(),
-        notificationsEnabled: true,
-        lastAvailabilityStatus: "LOCKED",
-      };
-
-      await saveActivityState(stateMap);
-    }
-  },
-  {
-    urls: ["*://ncmall.neopets.com/games/giveaway/process_giveaway.phtml*"],
-  }
+  { urls: ["*://www.neopets.com/*", "*://ncmall.neopets.com/*"] }
 );
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -141,11 +93,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const availability = computeAvailability({ definition, state }, now);
 
-        return {
-          definition,
-          state,
-          availability,
-        };
+        return { definition, state, availability };
       });
 
       sendResponse({ activities });
@@ -158,35 +106,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "MARK_COMPLETED") {
     const { activityId } = message;
 
-    loadActivityState().then((stateMap) => {
-      const existing = stateMap[activityId] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
+    const definition = ACTIVITIES.find((a) => a.id === activityId);
+    if (!definition) return true;
 
-      const definition = ACTIVITIES.find((a) => a.id === activityId);
-
-      if (!definition) return;
-
-      // DAILY_LIMIT activities (Grumpy Old King, Bagatelle, etc.)
+    updateActivityState(activityId, (existing) => {
       if (definition.timingType === "DAILY_LIMIT") {
-        stateMap[activityId] = {
-          ...existing,
-          usesToday: (existing.usesToday ?? 0) + 1,
-        };
-      } else {
-        // Everything else
-        stateMap[activityId] = {
-          ...existing,
-          lastCompletedAt: Date.now(),
-        };
+        return incrementUse(existing, definition.maxPerDay);
       }
 
-      saveActivityState(stateMap).then(() => {
-        sendResponse({ success: true });
-      });
-    });
+      return {
+        ...existing,
+        lastCompletedAt: Date.now(),
+      };
+    }).then(() => sendResponse({ success: true }));
 
     return true;
   }
@@ -195,39 +127,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "AUTO_MARK_COMPLETED") {
     const { activityId } = message;
 
-    loadActivityState().then((stateMap) => {
-      const existing = stateMap[activityId] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
+    const definition = ACTIVITIES.find((a) => a.id === activityId);
+    if (!definition) return true;
 
-      const definition = ACTIVITIES.find((a) => a.id === activityId);
-      if (!definition) return;
-
-      // DAILY_LIMIT (wheels like Knowledge, Mediocrity, etc.)
+    updateActivityState(activityId, (existing) => {
       if (definition.timingType === "DAILY_LIMIT") {
-        stateMap[activityId] = {
-          ...existing,
-          usesToday: (existing.usesToday ?? 0) + 1,
-          lastCompletedAt: Date.now(),
-          notificationsEnabled: true,
-          lastAvailabilityStatus: "LOCKED",
-        };
-      } else {
-        // Everything else
-        stateMap[activityId] = {
-          ...existing,
-          lastCompletedAt: Date.now(),
+        return {
+          ...incrementUse(existing, definition.maxPerDay),
           notificationsEnabled: true,
           lastAvailabilityStatus: "LOCKED",
         };
       }
 
-      saveActivityState(stateMap).then(() => {
-        sendResponse({ success: true });
-      });
-    });
+      return markCompleted(existing);
+    }).then(() => sendResponse({ success: true }));
 
     return true;
   }
@@ -236,113 +149,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "INCREMENT_DAILY_COUNT") {
     const { activityId } = message;
 
-    loadActivityState().then((stateMap) => {
-      const existing = stateMap[activityId] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
+    const definition = ACTIVITIES.find((a) => a.id === activityId);
+    if (!definition || definition.timingType !== "DAILY_LIMIT") return true;
 
-      const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
+    const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
 
-      let usesToday = existing.usesToday ?? 0;
+    updateActivityState(activityId, (existing) => {
+      const uses = existing.lastUsedDay === today ? existing.usesToday ?? 0 : 0;
 
-      if (existing.lastUsedDay !== today) {
-        usesToday = 0;
-      }
-
-      stateMap[activityId] = {
-        ...existing,
-        usesToday: usesToday + 1,
+      return {
+        ...incrementUse({ ...existing, usesToday: uses }, definition.maxPerDay),
         lastUsedDay: today,
-        lastCompletedAt: Date.now(),
       };
-
-      saveActivityState(stateMap).then(() => {
-        sendResponse({ success: true });
-      });
-    });
+    }).then(() => sendResponse({ success: true }));
 
     return true;
   }
 
+  // -------- VARIABLE COOLDOWN --------
   if (message?.type === "SET_VARIABLE_COOLDOWN") {
     const { activityId, availableAt } = message;
 
-    loadActivityState().then((stateMap) => {
-      const existing = stateMap[activityId] ?? {
-        enabled: true,
-        notificationsEnabled: true,
-      };
-
-      stateMap[activityId] = {
-        ...existing,
-        lastCompletedAt: availableAt,
-      };
-
-      saveActivityState(stateMap).then(() => {
-        sendResponse({ success: true });
-      });
-    });
+    updateActivityState(activityId, (existing) => ({
+      ...existing,
+      lastCompletedAt: availableAt,
+    })).then(() => sendResponse({ success: true }));
 
     return true;
   }
 
+  // -------- FORCE LOCK --------
   if (message?.type === "AUTO_MARK_LOCKED") {
     const { activityId } = message;
 
-    loadActivityState().then((stateMap) => {
-      const existing = stateMap[activityId] ?? {
-        enabled: true,
-        notificationsEnabled: false,
-        usesToday: 0,
-      };
+    const definition = ACTIVITIES.find((a) => a.id === activityId);
+    if (!definition) return true;
 
-      const definition = ACTIVITIES.find((a) => a.id === activityId);
-      if (!definition) return;
-
-      // Force activity to max usage for today
+    updateActivityState(activityId, (existing) => {
       if (definition.timingType === "DAILY_LIMIT") {
-        stateMap[activityId] = {
+        return {
           ...existing,
-          usesToday: definition.maxPerDay ?? existing.usesToday ?? 0,
-          lastCompletedAt: Date.now(),
-        };
-      } else {
-        // Fallback: treat as completed today
-        stateMap[activityId] = {
-          ...existing,
+          usesToday: definition.maxPerDay ?? existing.usesToday,
           lastCompletedAt: Date.now(),
         };
       }
 
-      saveActivityState(stateMap).then(() => {
-        sendResponse({ success: true });
-      });
-    });
+      return {
+        ...existing,
+        lastCompletedAt: Date.now(),
+      };
+    }).then(() => sendResponse({ success: true }));
 
     return true;
   }
 
-  // DEV ONLY — force an activity to AVAILABLE
+  // -------- DEV FORCE AVAILABLE --------
   if (message?.type === "DEV_FORCE_AVAILABLE") {
     const { activityId } = message;
 
-    loadActivityState().then(async (stateMap) => {
-      const existing = stateMap[activityId];
-      if (!existing) return;
-
-      stateMap[activityId] = {
-        ...existing,
-        lastAvailabilityStatus: "LOCKED", // force transition
-        notificationsEnabled: true,
-        lastCompletedAt: Date.now() - 10_000_000, // safely in the past
-      };
-
-      await saveActivityState(stateMap);
-
-      sendResponse({ success: true });
-    });
+    updateActivityState(activityId, (existing) => ({
+      ...existing,
+      lastAvailabilityStatus: "LOCKED",
+      notificationsEnabled: true,
+      lastCompletedAt: Date.now() - 10_000_000,
+    })).then(() => sendResponse({ success: true }));
 
     return true;
   }

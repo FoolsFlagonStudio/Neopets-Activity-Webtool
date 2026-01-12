@@ -3,6 +3,7 @@ import {
   ActivityDefinition,
   ActivityState,
 } from "./../types/activity";
+import type { AvailabilityResult } from "../types/availability";
 import { ACTIVITIES } from "../data/activities";
 import { loadActivityState } from "./stateManager";
 import { getDateKeyInTimezone } from "../utils/npt";
@@ -36,16 +37,6 @@ export async function getAllActivitiesWithAvailability(): Promise<
     };
   });
 }
-
-// availability status for an activity
-export type AvailabilityStatus = "AVAILABLE" | "LOCKED" | "SOON";
-
-// result of availability computation
-export interface AvailabilityResult {
-  status: AvailabilityStatus;
-  msUntilAvailable?: number; // milliseconds until available (if LOCKED or SOON)
-}
-
 // computation function
 export function computeAvailability(
   activity: Activity,

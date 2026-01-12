@@ -1,4 +1,4 @@
-import type { AvailabilityStatus } from "../background/availabilityEngine";
+import type { AvailabilityStatus } from "./availability";
 
 /**
  * Activity timing models.

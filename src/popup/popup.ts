@@ -278,6 +278,14 @@ function renderActivity(
   return col;
 }
 
+function setActive(page: string) {
+  document
+    .querySelectorAll<HTMLButtonElement>(".popup-nav button")
+    .forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.page === page);
+    });
+}
+
 // ---------- Render ----------
 function render(activities: ActivityView[]): void {
   root.innerHTML = "";
@@ -338,7 +346,7 @@ async function loadPage(page: string) {
   container.innerHTML = await res.text();
 
   if (page === "activities") {
-    loadActivities(); // your existing function
+    loadActivities();
   }
 }
 
@@ -347,11 +355,14 @@ function setupNavigation() {
     .querySelectorAll<HTMLButtonElement>(".popup-nav button")
     .forEach((btn) => {
       btn.addEventListener("click", () => {
-        loadPage(btn.dataset.page!);
+        const page = btn.dataset.page!;
+        setActive(page);
+        loadPage(page);
       });
     });
 }
 
 // init
 setupNavigation();
+setActive("activities");
 loadPage("activities");

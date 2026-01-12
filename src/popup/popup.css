@@ -186,3 +186,21 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ================================
+   Info Page
+================================ */
+
+.info-page h6 {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.info-page p {
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.info-page ul {
+  padding-left: 1rem;
+}

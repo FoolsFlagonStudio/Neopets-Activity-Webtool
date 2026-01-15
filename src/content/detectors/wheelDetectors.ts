@@ -7,11 +7,6 @@ function isPopupDisplayed(): boolean {
   return !!popup && popup.style.display !== "none";
 }
 
-function pageIncludesAny(texts: string[]): boolean {
-  const pageText = document.body.textContent?.toLowerCase() ?? "";
-  return texts.some((t) => pageText.includes(t.toLowerCase()));
-}
-
 function hasWheelResultContent(): boolean {
   const success = document.getElementById("responseDisplaySuccess");
   const fail = document.getElementById("responseDisplayFail");
@@ -31,28 +26,49 @@ export function detectWheels(): void {
   for (const config of WHEEL_CONFIGS) {
     if (!location.pathname.includes(config.pathMatch)) continue;
 
-    const sessionKey = `wheel_detected_${config.activityId}`;
-    const max = config.maxPerSession ?? 1;
-    const count = Number(sessionStorage.getItem(sessionKey) ?? 0);
+    const sessionKey = `wheel_spin_${config.activityId}`;
 
-    if (count >= max) continue;
-    if (!isPopupDisplayed()) continue;
+    const popupVisible = isPopupDisplayed();
+
+    if (!popupVisible) {
+      sessionStorage.removeItem(sessionKey);
+      continue;
+    }
+
+    if (sessionStorage.getItem(sessionKey) === "1") continue;
+
+    const pageText = document.body.textContent?.toLowerCase() ?? "";
+
+    if (
+      config.alsoCountIfTextIncludes &&
+      config.alsoCountIfTextIncludes.some((t) =>
+        pageText.includes(t.toLowerCase())
+      )
+    ) {
+      console.log(`[NAT] ${config.activityId} locked`);
+
+      chrome.runtime.sendMessage({
+        type: "AUTO_MARK_LOCKED",
+        activityId: config.activityId,
+      });
+
+      sessionStorage.setItem(sessionKey, "1");
+      continue;
+    }
 
     let confirmed = config.requiresPrizeName
       ? hasPrizeName()
       : hasWheelResultContent();
 
-    if (!confirmed && config.alsoCountIfTextIncludes) {
-      confirmed = pageIncludesAny(config.alsoCountIfTextIncludes);
-    }
-
     if (!confirmed) continue;
+
+    console.log(`[NAT] ${config.activityId} completed`);
 
     chrome.runtime.sendMessage({
       type: "AUTO_MARK_COMPLETED",
       activityId: config.activityId,
     });
 
-    sessionStorage.setItem(sessionKey, String(count + 1));
+    sessionStorage.setItem(sessionKey, "1");
   }
 }

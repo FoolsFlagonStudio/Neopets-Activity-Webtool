@@ -6,6 +6,157 @@ function markReported(key: string): void {
   sessionStorage.setItem(key, "1");
 }
 
+function incrementDailyOnce(sessionKey: string, activityId: string): void {
+  if (sessionStorage.getItem(sessionKey) === "1") return;
+
+  chrome.runtime.sendMessage({
+    type: "INCREMENT_DAILY_COUNT",
+    activityId,
+  });
+
+  sessionStorage.setItem(sessionKey, "1");
+}
+
+type RepeatableTakeConfig = {
+  activityId: string;
+  pathMatch: string;
+  successText: string;
+  getPageText: () => string;
+};
+
+function getQueryParam(name: string): string | null {
+  return new URLSearchParams(location.search).get(name);
+}
+
+function detectSecondHandShoppeTake() {
+  if (!location.pathname.includes("/thriftshoppe/take_donation.phtml")) return;
+
+  const sessionKey = "secondhand_shoppe_attempt";
+
+  const text = pageText();
+
+  const success = text.includes("you got it");
+  const failure =
+    text.includes("someone else got it") || text.includes("nothing left");
+
+  if (success && !sessionStorage.getItem(sessionKey)) {
+    console.log("[NAT] Second-Hand Shoppe item taken");
+
+    chrome.runtime.sendMessage({
+      type: "INCREMENT_DAILY_COUNT",
+      activityId: "money_tree", // shared pool
+    });
+
+    sessionStorage.setItem(sessionKey, "1");
+    return;
+  }
+
+  if (!success && !failure) {
+    sessionStorage.removeItem(sessionKey);
+  }
+}
+
+function detectDonationTake(activityId: string) {
+  const isTakePage = location.pathname.includes("takedonation_new.phtml");
+  const donationId = getQueryParam("donation_id");
+  const locationId = getQueryParam("location_id");
+
+  const sessionKey = `${activityId}_donation_edge`;
+
+  // Returned to idle page → reset edge
+  if (!isTakePage) {
+    sessionStorage.removeItem(sessionKey);
+    return;
+  }
+
+  // Must have real take params
+  if (!donationId || !locationId) return;
+
+  // Already counted this take
+  if (sessionStorage.getItem(sessionKey) === donationId) return;
+
+  console.log("[NAT] Donation taken", activityId, donationId);
+
+  chrome.runtime.sendMessage({
+    type: "INCREMENT_DAILY_COUNT",
+    activityId,
+  });
+
+  // Store the specific donation id we just counted
+  sessionStorage.setItem(sessionKey, donationId);
+}
+
+export function detectRepeatableTake({
+  activityId,
+  pathMatch,
+  successText,
+}: {
+  activityId: string;
+  pathMatch: string;
+  successText: string;
+}) {
+  if (!location.pathname.includes(pathMatch)) return;
+
+  const text = pageText();
+  const success = text.includes(successText);
+
+  const sessionKey = `repeat_${activityId}`;
+  const pageFingerprint = text.slice(0, 600); // cheap + stable
+
+  const lastFingerprint = sessionStorage.getItem(sessionKey);
+
+  // First time seeing this successful result
+  if (success && lastFingerprint !== pageFingerprint) {
+    chrome.runtime.sendMessage({
+      type: "INCREMENT_DAILY_COUNT",
+      activityId,
+    });
+
+    sessionStorage.setItem(sessionKey, pageFingerprint);
+    return;
+  }
+
+  // Reset once page changes away from success
+  if (!success) {
+    sessionStorage.removeItem(sessionKey);
+  }
+}
+
+// export function detectRepeatableTake(options: {
+//   activityId: string;
+//   pathMatch: string;
+//   successText: string | string[];
+//   getPageText: () => string;
+// }): void {
+//   if (!location.pathname.includes(options.pathMatch)) return;
+
+//   const sessionKey = `repeatable_take_${options.activityId}`;
+//   const text = options.getPageText();
+
+//   const successTexts = Array.isArray(options.successText)
+//     ? options.successText
+//     : [options.successText];
+
+//   const success = successTexts.some((t) => text.includes(t));
+
+//   // ✅ Count exactly once per confirmed take
+//   if (success && sessionStorage.getItem(sessionKey) !== "1") {
+//     console.log(`[NAT] ${options.activityId} take detected`);
+
+//     chrome.runtime.sendMessage({
+//       type: "INCREMENT_DAILY_COUNT",
+//       activityId: options.activityId,
+//     });
+
+//     sessionStorage.setItem(sessionKey, "1");
+//   }
+
+//   // ✅ User navigated back / page reset → allow next take
+//   if (!success) {
+//     sessionStorage.removeItem(sessionKey);
+//   }
+// }
+
 function getPageText(): string {
   const modern = document.querySelector<HTMLElement>("#container__2020");
   if (modern) {
@@ -96,61 +247,11 @@ export function detectDailyCollect(): void {
     () => pageText().includes("collected") && pageText().includes("np interest")
   );
 
-  // ---------------- Money Tree ----------------
-  if (location.pathname.includes("takedonation_new.phtml")) {
-    const text = pageText();
+  // Money Tree + Rubbish Dump
+  detectDonationTake("money_tree");
 
-    const completed = text.includes("yeah! you got it");
-
-    if (completed) {
-      console.log("[NAT] Money Tree item taken");
-
-      chrome.runtime.sendMessage({
-        type: "INCREMENT_DAILY_COUNT",
-        activityId: "money_tree",
-      });
-    }
-  }
-
-  // ---------------- Second-Hand Shoppe ----------------
-  if (location.pathname.includes("/thriftshoppe/take_donation.phtml")) {
-    if (!alreadyReported("secondhand_shoppe_take")) {
-      const text = pageText();
-
-      const completed = text.includes("you got it");
-
-      if (completed) {
-        console.log("[NAT] Second-Hand Shoppe item taken");
-
-        chrome.runtime.sendMessage({
-          type: "INCREMENT_DAILY_COUNT",
-          activityId: "money_tree", // shared pool
-        });
-
-        markReported("secondhand_shoppe_take");
-      }
-    }
-  }
-
-  // ---------------- Rubbish Dump ----------------
-  if (location.pathname.includes("takedonation_new.phtml")) {
-    if (!alreadyReported("rubbish_dump_take")) {
-      const text = pageText();
-
-      const completed = text.includes("yeah! you got it");
-
-      if (completed) {
-        console.log("[NAT] Rubbish Dump item taken");
-
-        chrome.runtime.sendMessage({
-          type: "INCREMENT_DAILY_COUNT",
-          activityId: "money_tree", // shared pool
-        });
-
-        markReported("rubbish_dump_take");
-      }
-    }
-  }
+  // Secondhand Shoppe
+  detectSecondHandShoppeTake();
 
   // ---------------- Shop of Offers ----------------
   detectStandardDaily(
@@ -163,29 +264,32 @@ export function detectDailyCollect(): void {
 
   // ---------------- Trudy’s Surprise ----------------
   if (location.pathname.includes("/trudys_surprise.phtml")) {
-    if (!alreadyReported("trudys_surprise")) {
-      const popup = document.getElementById("trudyprizePopup");
+    if (alreadyReported("trudys_surprise")) return;
+
+    const observer = new MutationObserver(() => {
       const title = document.getElementById("trudyPrizeTitle");
       const text = document.getElementById("trudyPrizeText");
 
-      const isVisible =
-        popup instanceof HTMLElement && popup.style.display === "block";
+      const combined = `${title?.textContent ?? ""} ${
+        text?.textContent ?? ""
+      }`.toLowerCase();
 
-      const hasWinText =
-        title?.textContent?.toLowerCase().includes("won") ||
-        text?.textContent?.toLowerCase().includes("come back tomorrow");
-
-      if (isVisible && hasWinText) {
-        console.log("[NAT] Trudy’s Surprise completed");
-
+      if (combined.includes("won") || combined.includes("come back tomorrow")) {
         chrome.runtime.sendMessage({
           type: "AUTO_MARK_COMPLETED",
           activityId: "trudys_surprise",
         });
 
         markReported("trudys_surprise");
+        observer.disconnect();
       }
-    }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   // ---------------- Monthly Freebies ----------------
@@ -229,27 +333,61 @@ export function detectDailyCollect(): void {
   });
 
   // ---------------- Anchor Management ----------------
-  detectStandardDaily(
-    "anchor_management",
-    "/pirates/anchormanagement.phtml",
-    () => {
-      const t = pageText();
-      return (
-        t.includes("krawken") &&
-        (t.includes("left you") ||
-          t.includes("memento") ||
-          t.includes("retreats") ||
-          t.includes("sneaky"))
-      );
+  if (location.pathname.includes("/pirates/anchormanagement.phtml")) {
+    if (!alreadyReported("anchor_management")) {
+      const container = document.body;
+
+      const observer = new MutationObserver(() => {
+        const t = pageText();
+
+        const hasResult =
+          t.includes("krawken") &&
+          (t.includes("left you") ||
+            t.includes("memento") ||
+            t.includes("retreats") ||
+            t.includes("sneaky"));
+
+        if (hasResult) {
+          console.log("[NAT] Anchor Management completed");
+
+          autoComplete("anchor_management");
+          markReported("anchor_management");
+          observer.disconnect();
+        }
+      });
+
+      observer.observe(container, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
     }
-  );
+  }
 
   // ---------------- Mysterious Negg Cave ----------------
-  detectStandardDaily(
-    "mysterious_negg_cave",
-    "/shenkuu/neggcave",
-    () => !!document.getElementById("mnc_popup_generic_correct")
-  );
+  if (location.pathname.includes("/shenkuu/neggcave")) {
+    if (alreadyReported("mysterious_negg_cave")) return;
+
+    const observer = new MutationObserver(() => {
+      const successPopup = document.getElementById("mnc_popup_generic_correct");
+      const text = document.body.textContent?.toLowerCase() ?? "";
+
+      if (successPopup && !text.includes("already completed")) {
+        chrome.runtime.sendMessage({
+          type: "AUTO_MARK_COMPLETED",
+          activityId: "mysterious_negg_cave",
+        });
+
+        markReported("mysterious_negg_cave");
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
 
   // ---------------- Grave Danger ----------------
   if (location.pathname.includes("/halloween/gravedanger")) {
@@ -330,28 +468,31 @@ export function detectDailyCollect(): void {
 
   // ---------------- Grumpy Old King ----------------
   if (location.pathname.includes("/medieval/grumpyking.phtml")) {
-    const text = getPageText().toLowerCase();
+    const sessionKey = "grumpy_attempt";
+
+    const text = pageText();
 
     const success = text.includes("king skarl listens as you tell your joke");
+    const locked = text.includes("already told me a joke today");
 
-    const hardLocked = text.includes("you've already told me a joke today");
-
-    if (success) {
-      console.log("[NAT] Grumpy Old King joke submitted");
-
+    if (!sessionStorage.getItem(sessionKey) && success) {
       chrome.runtime.sendMessage({
         type: "AUTO_MARK_COMPLETED",
         activityId: "grumpy_old_king",
       });
+
+      sessionStorage.setItem(sessionKey, "1");
     }
 
-    if (hardLocked) {
-      console.log("[NAT] Grumpy Old King already completed today");
-
+    if (locked) {
       chrome.runtime.sendMessage({
         type: "AUTO_MARK_LOCKED",
         activityId: "grumpy_old_king",
       });
+    }
+
+    if (!success && !locked) {
+      sessionStorage.removeItem(sessionKey);
     }
   }
 
@@ -443,18 +584,36 @@ export function detectDailyCollect(): void {
   });
 
   // ---------------- TDMBGPOP ----------------
-  detectStandardDaily("tdmbgpop", "/faerieland/tdmbgpop.phtml", () => {
-    const t = pageText();
-    return (
-      t.includes("new plushie on the ground nearby") ||
-      t.includes("nothing seems to happen") ||
-      t.includes("haven't you been feeding") ||
-      t.includes("so excited to visit") ||
-      t.includes("nothing seems to make a neopet feel better") ||
-      t.includes("discarded plushie") ||
-      t.includes("there is no response from the plushie")
-    );
-  });
+  if (location.pathname.includes("/faerieland/tdmbgpop.phtml")) {
+    if (alreadyReported("tdmbgpop")) return;
+
+    const observer = new MutationObserver(() => {
+      const text = document.body.textContent?.toLowerCase() ?? "";
+
+      const completed =
+        text.includes("new plushie on the ground nearby") ||
+        text.includes("nothing seems to happen") ||
+        text.includes("haven't you been feeding") ||
+        text.includes("discarded plushie") ||
+        text.includes("there is no response from the plushie");
+
+      if (completed) {
+        chrome.runtime.sendMessage({
+          type: "AUTO_MARK_COMPLETED",
+          activityId: "tdmbgpop",
+        });
+
+        markReported("tdmbgpop");
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
 
   // ---------------- Qasalan Expellibox ----------------
   if (

@@ -44,7 +44,7 @@ function detectSecondHandShoppeTake() {
 
     chrome.runtime.sendMessage({
       type: "INCREMENT_DAILY_COUNT",
-      activityId: "money_tree", // shared pool
+      activityId: "money_tree",
     });
 
     sessionStorage.setItem(sessionKey, "1");
@@ -56,34 +56,74 @@ function detectSecondHandShoppeTake() {
   }
 }
 
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\u00a0/g, " ")
+    .trim();
+}
+
 function detectDonationTake(activityId: string) {
-  const isTakePage = location.pathname.includes("takedonation_new.phtml");
+  if (!location.pathname.includes("takedonation_new.phtml")) return;
+
   const donationId = getQueryParam("donation_id");
   const locationId = getQueryParam("location_id");
-
-  const sessionKey = `${activityId}_donation_edge`;
-
-  // Returned to idle page → reset edge
-  if (!isTakePage) {
-    sessionStorage.removeItem(sessionKey);
-    return;
-  }
-
-  // Must have real take params
   if (!donationId || !locationId) return;
 
-  // Already counted this take
-  if (sessionStorage.getItem(sessionKey) === donationId) return;
+  const sessionKey = `${activityId}_donation_${donationId}`;
+  if (sessionStorage.getItem(sessionKey)) return;
 
-  console.log("[NAT] Donation taken", activityId, donationId);
+  const container = document.getElementById("container__2020") ?? document.body;
 
-  chrome.runtime.sendMessage({
-    type: "INCREMENT_DAILY_COUNT",
-    activityId,
+  const readPage = () => normalizeText(container.innerText || "");
+
+  const SUCCESS = "yeah! you got it";
+  const FAILURE = [
+    "oops! too late",
+    "somebody seems to have taken that item",
+    "too slow",
+    "pondering",
+  ];
+
+  const check = () => {
+    const text = readPage();
+
+    console.log("[NAT][MoneyTree] Read text:", text);
+
+    if (FAILURE.some((f) => text.includes(f))) {
+      sessionStorage.setItem(sessionKey, "fail");
+      return true;
+    }
+
+    if (text.includes(SUCCESS)) {
+      console.log("[NAT] Money Tree success", donationId);
+
+      chrome.runtime.sendMessage({
+        type: "INCREMENT_DAILY_COUNT",
+        activityId,
+      });
+
+      sessionStorage.setItem(sessionKey, "success");
+      return true;
+    }
+
+    return false;
+  };
+
+  // ✅ synchronous check (most important)
+  if (check()) return;
+
+  // ✅ fallback observer
+  const observer = new MutationObserver(() => {
+    if (check()) observer.disconnect();
   });
 
-  // Store the specific donation id we just counted
-  sessionStorage.setItem(sessionKey, donationId);
+  observer.observe(container, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
 }
 
 export function detectRepeatableTake({
@@ -101,11 +141,10 @@ export function detectRepeatableTake({
   const success = text.includes(successText);
 
   const sessionKey = `repeat_${activityId}`;
-  const pageFingerprint = text.slice(0, 600); // cheap + stable
+  const pageFingerprint = text.slice(0, 600);
 
   const lastFingerprint = sessionStorage.getItem(sessionKey);
 
-  // First time seeing this successful result
   if (success && lastFingerprint !== pageFingerprint) {
     chrome.runtime.sendMessage({
       type: "INCREMENT_DAILY_COUNT",
@@ -116,46 +155,10 @@ export function detectRepeatableTake({
     return;
   }
 
-  // Reset once page changes away from success
   if (!success) {
     sessionStorage.removeItem(sessionKey);
   }
 }
-
-// export function detectRepeatableTake(options: {
-//   activityId: string;
-//   pathMatch: string;
-//   successText: string | string[];
-//   getPageText: () => string;
-// }): void {
-//   if (!location.pathname.includes(options.pathMatch)) return;
-
-//   const sessionKey = `repeatable_take_${options.activityId}`;
-//   const text = options.getPageText();
-
-//   const successTexts = Array.isArray(options.successText)
-//     ? options.successText
-//     : [options.successText];
-
-//   const success = successTexts.some((t) => text.includes(t));
-
-//   // ✅ Count exactly once per confirmed take
-//   if (success && sessionStorage.getItem(sessionKey) !== "1") {
-//     console.log(`[NAT] ${options.activityId} take detected`);
-
-//     chrome.runtime.sendMessage({
-//       type: "INCREMENT_DAILY_COUNT",
-//       activityId: options.activityId,
-//     });
-
-//     sessionStorage.setItem(sessionKey, "1");
-//   }
-
-//   // ✅ User navigated back / page reset → allow next take
-//   if (!success) {
-//     sessionStorage.removeItem(sessionKey);
-//   }
-// }
 
 function getPageText(): string {
   const modern = document.querySelector<HTMLElement>("#container__2020");
@@ -248,7 +251,8 @@ export function detectDailyCollect(): void {
   );
 
   // Money Tree + Rubbish Dump
-  detectDonationTake("money_tree");
+  requestAnimationFrame(() => detectDonationTake("money_tree"));
+  setTimeout(() => detectDonationTake("money_tree"), 50);
 
   // Secondhand Shoppe
   detectSecondHandShoppeTake();
@@ -595,7 +599,9 @@ export function detectDailyCollect(): void {
         text.includes("nothing seems to happen") ||
         text.includes("haven't you been feeding") ||
         text.includes("discarded plushie") ||
-        text.includes("there is no response from the plushie");
+        text.includes("there is no response from the plushie") ||
+        text.includes("The plushie remains") ||
+        text.includes("neopoints");
 
       if (completed) {
         chrome.runtime.sendMessage({

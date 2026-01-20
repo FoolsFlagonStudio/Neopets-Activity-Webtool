@@ -26,16 +26,43 @@ export function detectWheels(): void {
   for (const config of WHEEL_CONFIGS) {
     if (!location.pathname.includes(config.pathMatch)) continue;
 
-    const sessionKey = `wheel_detected_${config.activityId}`;
+    const sessionKey = `wheel_spin_${config.activityId}`;
+
+    const popupVisible = isPopupDisplayed();
+
+    if (!popupVisible) {
+      sessionStorage.removeItem(sessionKey);
+      continue;
+    }
+
     if (sessionStorage.getItem(sessionKey) === "1") continue;
 
-    if (!isPopupDisplayed()) continue;
+    const pageText = document.body.textContent?.toLowerCase() ?? "";
 
-    const confirmed = config.requiresPrizeName
+    if (
+      config.alsoCountIfTextIncludes &&
+      config.alsoCountIfTextIncludes.some((t) =>
+        pageText.includes(t.toLowerCase())
+      )
+    ) {
+      console.log(`[NAT] ${config.activityId} locked`);
+
+      chrome.runtime.sendMessage({
+        type: "AUTO_MARK_LOCKED",
+        activityId: config.activityId,
+      });
+
+      sessionStorage.setItem(sessionKey, "1");
+      continue;
+    }
+
+    let confirmed = config.requiresPrizeName
       ? hasPrizeName()
       : hasWheelResultContent();
 
     if (!confirmed) continue;
+
+    console.log(`[NAT] ${config.activityId} completed`);
 
     chrome.runtime.sendMessage({
       type: "AUTO_MARK_COMPLETED",

@@ -3,6 +3,7 @@ export interface WheelConfig {
   pathMatch: string;
   resultElementIds: string[];
   requiresPrizeName?: boolean;
+  alsoCountIfTextIncludes?: string[];
 }
 
 const COMMON_RESULT_ELEMENTS = [
@@ -30,6 +31,8 @@ export const WHEEL_CONFIGS: WheelConfig[] = [
     activityId: "wheel_of_knowledge",
     pathMatch: "knowledge.phtml",
     resultElementIds: COMMON_RESULT_ELEMENTS,
+    alsoCountIfTextIncludes: ["already spun", "come back tomorrow"],
+    // maxPerSession: 2,
   },
   {
     activityId: "wheel_of_misfortune",
@@ -40,6 +43,8 @@ export const WHEEL_CONFIGS: WheelConfig[] = [
     activityId: "wheel_of_monotony",
     pathMatch: "monotony.phtml",
     resultElementIds: COMMON_RESULT_ELEMENTS,
+    alsoCountIfTextIncludes: ["already spun", "come back tomorrow"],
+    // maxPerSession: 2,
   },
   {
     activityId: "wheel_of_extravagance",

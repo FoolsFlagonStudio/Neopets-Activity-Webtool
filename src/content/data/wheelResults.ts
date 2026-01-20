@@ -14,7 +14,7 @@ export const WHEEL_RESULT_PHRASES: Record<string, string[]> = {
   wheel_of_monotony: [
     "How did you find your way this far North?!!?",
     "Not bad! Was your prize",
-    "You found an avatar!",
+    "avatar",
     "You got a lottery ticket!",
     "Better luck next time. Come back when you have a lot of time to kill.",
     "Your Neopet loses half",

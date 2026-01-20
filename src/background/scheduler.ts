@@ -1,24 +1,38 @@
 import { getAllActivitiesWithAvailability } from "./availabilityEngine";
 import { loadActivityState, saveActivityState } from "./stateManager";
 import { notify } from "./notifications";
+import type { AvailabilityStatus } from "./../types/availability";
 
-const ALARM_NAME = "nat-availability-check";
-const CHECK_INTERVAL_MINUTES = 1;
+const SCHEDULER = {
+  ALARM_NAME: "nat-availability-check",
+  INTERVAL_MINUTES: 1,
+};
+
+// ---------------- Lifecycle ----------------
 
 export function startScheduler(): void {
-  chrome.alarms.get(ALARM_NAME, (existing) => {
+  chrome.alarms.get(SCHEDULER.ALARM_NAME, (existing) => {
     if (existing) return;
 
-    chrome.alarms.create(ALARM_NAME, {
-      periodInMinutes: CHECK_INTERVAL_MINUTES,
+    chrome.alarms.create(SCHEDULER.ALARM_NAME, {
+      periodInMinutes: SCHEDULER.INTERVAL_MINUTES,
     });
   });
 }
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name !== ALARM_NAME) return;
+  if (alarm.name !== SCHEDULER.ALARM_NAME) return;
   checkAvailabilityAndNotify();
 });
+
+// ---------------- Core Logic ----------------
+
+function transitionedToAvailable(
+  prev: AvailabilityStatus | undefined,
+  curr: AvailabilityStatus
+): boolean {
+  return prev !== "AVAILABLE" && curr === "AVAILABLE";
+}
 
 async function checkAvailabilityAndNotify(): Promise<void> {
   const activities = await getAllActivitiesWithAvailability();
@@ -26,16 +40,14 @@ async function checkAvailabilityAndNotify(): Promise<void> {
 
   const newlyReady: string[] = [];
 
-  for (const activity of activities) {
-    const { definition, availability } = activity;
+  for (const { definition, availability } of activities) {
     const state = stateMap[definition.id];
-
     if (!state?.enabled || !state.notificationsEnabled) continue;
 
     const prev = state.lastAvailabilityStatus;
     const curr = availability.status;
 
-    if (prev !== "AVAILABLE" && curr === "AVAILABLE") {
+    if (transitionedToAvailable(prev, curr)) {
       newlyReady.push(definition.name);
     }
 

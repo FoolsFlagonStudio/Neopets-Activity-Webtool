@@ -6,6 +6,160 @@ function markReported(key: string): void {
   sessionStorage.setItem(key, "1");
 }
 
+function incrementDailyOnce(sessionKey: string, activityId: string): void {
+  if (sessionStorage.getItem(sessionKey) === "1") return;
+
+  chrome.runtime.sendMessage({
+    type: "INCREMENT_DAILY_COUNT",
+    activityId,
+  });
+
+  sessionStorage.setItem(sessionKey, "1");
+}
+
+type RepeatableTakeConfig = {
+  activityId: string;
+  pathMatch: string;
+  successText: string;
+  getPageText: () => string;
+};
+
+function getQueryParam(name: string): string | null {
+  return new URLSearchParams(location.search).get(name);
+}
+
+function detectSecondHandShoppeTake() {
+  if (!location.pathname.includes("/thriftshoppe/take_donation.phtml")) return;
+
+  const sessionKey = "secondhand_shoppe_attempt";
+
+  const text = pageText();
+
+  const success = text.includes("you got it");
+  const failure =
+    text.includes("someone else got it") || text.includes("nothing left");
+
+  if (success && !sessionStorage.getItem(sessionKey)) {
+    console.log("[NAT] Second-Hand Shoppe item taken");
+
+    chrome.runtime.sendMessage({
+      type: "INCREMENT_DAILY_COUNT",
+      activityId: "money_tree",
+    });
+
+    sessionStorage.setItem(sessionKey, "1");
+    return;
+  }
+
+  if (!success && !failure) {
+    sessionStorage.removeItem(sessionKey);
+  }
+}
+
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\u00a0/g, " ")
+    .trim();
+}
+
+function detectDonationTake(activityId: string) {
+  if (!location.pathname.includes("takedonation_new.phtml")) return;
+
+  const donationId = getQueryParam("donation_id");
+  const locationId = getQueryParam("location_id");
+  if (!donationId || !locationId) return;
+
+  const sessionKey = `${activityId}_donation_${donationId}`;
+  if (sessionStorage.getItem(sessionKey)) return;
+
+  const container = document.getElementById("container__2020") ?? document.body;
+
+  const readPage = () => normalizeText(container.innerText || "");
+
+  const SUCCESS = "yeah! you got it";
+  const FAILURE = [
+    "oops! too late",
+    "somebody seems to have taken that item",
+    "too slow",
+    "pondering",
+  ];
+
+  const check = () => {
+    const text = readPage();
+
+    console.log("[NAT][MoneyTree] Read text:", text);
+
+    if (FAILURE.some((f) => text.includes(f))) {
+      sessionStorage.setItem(sessionKey, "fail");
+      return true;
+    }
+
+    if (text.includes(SUCCESS)) {
+      console.log("[NAT] Money Tree success", donationId);
+
+      chrome.runtime.sendMessage({
+        type: "INCREMENT_DAILY_COUNT",
+        activityId,
+      });
+
+      sessionStorage.setItem(sessionKey, "success");
+      return true;
+    }
+
+    return false;
+  };
+
+  // ✅ synchronous check (most important)
+  if (check()) return;
+
+  // ✅ fallback observer
+  const observer = new MutationObserver(() => {
+    if (check()) observer.disconnect();
+  });
+
+  observer.observe(container, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+}
+
+export function detectRepeatableTake({
+  activityId,
+  pathMatch,
+  successText,
+}: {
+  activityId: string;
+  pathMatch: string;
+  successText: string;
+}) {
+  if (!location.pathname.includes(pathMatch)) return;
+
+  const text = pageText();
+  const success = text.includes(successText);
+
+  const sessionKey = `repeat_${activityId}`;
+  const pageFingerprint = text.slice(0, 600);
+
+  const lastFingerprint = sessionStorage.getItem(sessionKey);
+
+  if (success && lastFingerprint !== pageFingerprint) {
+    chrome.runtime.sendMessage({
+      type: "INCREMENT_DAILY_COUNT",
+      activityId,
+    });
+
+    sessionStorage.setItem(sessionKey, pageFingerprint);
+    return;
+  }
+
+  if (!success) {
+    sessionStorage.removeItem(sessionKey);
+  }
+}
+
 function getPageText(): string {
   const modern = document.querySelector<HTMLElement>("#container__2020");
   if (modern) {
@@ -18,6 +172,39 @@ function getPageText(): string {
   }
 
   return document.body.innerText.toLowerCase();
+}
+
+function pageText(): string {
+  return getPageText();
+}
+
+function autoComplete(activityId: string): void {
+  chrome.runtime.sendMessage({
+    type: "AUTO_MARK_COMPLETED",
+    activityId,
+  });
+}
+
+function incrementDaily(activityId: string): void {
+  chrome.runtime.sendMessage({
+    type: "INCREMENT_DAILY_COUNT",
+    activityId,
+  });
+}
+
+function detectStandardDaily(
+  activityId: string,
+  pathMatch: string,
+  completed: () => boolean
+): void {
+  if (!location.pathname.includes(pathMatch)) return;
+  if (alreadyReported(activityId)) return;
+
+  if (completed()) {
+    console.log(`[NAT] ${activityId} completed`);
+    autoComplete(activityId);
+    markReported(activityId);
+  }
 }
 
 function parseRemainingTime(text: string): number {
@@ -35,188 +222,87 @@ function parseRemainingTime(text: string): number {
 }
 
 export function detectDailyCollect(): void {
-  const text = (document.body.textContent || "").toLowerCase();
+  const text = pageText();
 
   // -------- FREE JELLY --------
-  if (location.pathname.includes("/jelly/jelly.phtml")) {
-    if (!alreadyReported("free_jelly")) {
-      const jellyDetected =
-        text.includes("you take some") ||
-        text.includes("the jelly keeper") ||
-        text.includes("remember... only one helping per day");
-
-      if (jellyDetected) {
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "free_jelly",
-        });
-
-        markReported("free_jelly");
-      }
-    }
-  }
+  detectStandardDaily(
+    "free_jelly",
+    "/jelly/jelly.phtml",
+    () =>
+      pageText().includes("you take some") ||
+      pageText().includes("the jelly keeper") ||
+      pageText().includes("remember... only one helping per day")
+  );
 
   // -------- GIANT OMELETTE --------
-  if (location.pathname.includes("/prehistoric/omelette.phtml")) {
-    if (!alreadyReported("giant_omelette")) {
-      const omeletteDetected =
-        text.includes("take a slice") ||
-        text.includes("manage to take a slice");
-
-      if (omeletteDetected) {
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "giant_omelette",
-        });
-
-        markReported("giant_omelette");
-      }
-    }
-  }
+  detectStandardDaily(
+    "giant_omelette",
+    "/prehistoric/omelette.phtml",
+    () =>
+      pageText().includes("take a slice") ||
+      pageText().includes("manage to take a slice")
+  );
 
   // ---------------- Bank Interest ----------------
-  if (location.pathname.includes("/bank.phtml")) {
-    if (!alreadyReported("bank_interest")) {
-      const completed =
-        text.includes("collected") && text.includes("np interest");
+  detectStandardDaily(
+    "bank_interest",
+    "/bank.phtml",
+    () => pageText().includes("collected") && pageText().includes("np interest")
+  );
 
-      if (completed) {
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "bank_interest",
-        });
+  // Money Tree + Rubbish Dump
+  requestAnimationFrame(() => detectDonationTake("money_tree"));
+  setTimeout(() => detectDonationTake("money_tree"), 50);
 
-        markReported("bank_interest");
-      }
-    }
-  }
-
-  // ---------------- Money Tree ----------------
-  if (location.pathname.includes("takedonation_new.phtml")) {
-    if (!alreadyReported("money_tree_take")) {
-      const text = getPageText();
-
-      const completed = text.includes("yeah! you got it");
-
-      if (completed) {
-        console.log("[NAT] Money Tree item taken");
-
-        chrome.runtime.sendMessage({
-          type: "INCREMENT_DAILY_COUNT",
-          activityId: "money_tree",
-        });
-
-        markReported("money_tree_take");
-      }
-    }
-  }
-
-  // ---------------- Second-Hand Shoppe ----------------
-  if (location.pathname.includes("/thriftshoppe/take_donation.phtml")) {
-    if (!alreadyReported("secondhand_shoppe_take")) {
-      const text = getPageText();
-
-      const completed = text.includes("you got it");
-
-      if (completed) {
-        console.log("[NAT] Second-Hand Shoppe item taken");
-
-        chrome.runtime.sendMessage({
-          type: "INCREMENT_DAILY_COUNT",
-          activityId: "money_tree", // shared pool
-        });
-
-        markReported("secondhand_shoppe_take");
-      }
-    }
-  }
-
-  // ---------------- Rubbish Dump ----------------
-  if (location.pathname.includes("takedonation_new.phtml")) {
-    if (!alreadyReported("rubbish_dump_take")) {
-      const text = getPageText();
-
-      const completed = text.includes("yeah! you got it");
-
-      if (completed) {
-        console.log("[NAT] Rubbish Dump item taken");
-
-        chrome.runtime.sendMessage({
-          type: "INCREMENT_DAILY_COUNT",
-          activityId: "money_tree", // shared pool
-        });
-
-        markReported("rubbish_dump_take");
-      }
-    }
-  }
+  // Secondhand Shoppe
+  detectSecondHandShoppeTake();
 
   // ---------------- Shop of Offers ----------------
-  if (location.pathname.includes("/shop_of_offers.phtml")) {
-    if (!alreadyReported("shop_of_offers")) {
-      const text = getPageText();
+  detectStandardDaily(
+    "shop_of_offers",
+    "/shop_of_offers.phtml",
+    () =>
+      pageText().includes("something has happened") &&
+      pageText().includes("very rich slorg")
+  );
 
-      const completed =
-        text.includes("something has happened") &&
-        text.includes("very rich slorg");
-
-      if (completed) {
-        console.log("[NAT] Shop of Offers completed");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "shop_of_offers",
-        });
-
-        markReported("shop_of_offers");
-      }
-    }
-  }
   // ---------------- Trudy’s Surprise ----------------
   if (location.pathname.includes("/trudys_surprise.phtml")) {
-    if (!alreadyReported("trudys_surprise")) {
-      const popup = document.getElementById("trudyprizePopup");
+    if (alreadyReported("trudys_surprise")) return;
+
+    const observer = new MutationObserver(() => {
       const title = document.getElementById("trudyPrizeTitle");
       const text = document.getElementById("trudyPrizeText");
 
-      const isVisible =
-        popup instanceof HTMLElement && popup.style.display === "block";
+      const combined = `${title?.textContent ?? ""} ${
+        text?.textContent ?? ""
+      }`.toLowerCase();
 
-      const hasWinText =
-        title?.textContent?.toLowerCase().includes("won") ||
-        text?.textContent?.toLowerCase().includes("come back tomorrow");
-
-      if (isVisible && hasWinText) {
-        console.log("[NAT] Trudy’s Surprise completed");
-
+      if (combined.includes("won") || combined.includes("come back tomorrow")) {
         chrome.runtime.sendMessage({
           type: "AUTO_MARK_COMPLETED",
           activityId: "trudys_surprise",
         });
 
         markReported("trudys_surprise");
+        observer.disconnect();
       }
-    }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   // ---------------- Monthly Freebies ----------------
-  if (location.pathname.includes("/freebies/index.phtml")) {
-    if (!alreadyReported("monthly_freebies")) {
-      console.log("[NAT] Monthly Freebies page visited");
-
-      chrome.runtime.sendMessage({
-        type: "AUTO_MARK_COMPLETED",
-        activityId: "monthly_freebies",
-      });
-
-      markReported("monthly_freebies");
-    }
-  }
+  detectStandardDaily("monthly_freebies", "/freebies/index.phtml", () => true);
 
   // ---------------- Obsidian Quarry ----------------
   if (location.pathname.includes("/magma/quarry.phtml")) {
     if (!alreadyReported("obsidian_quarry")) {
-      const text = getPageText();
+      const text = pageText();
 
       const successText =
         text.includes("pick up a chunk of obsidian") ||
@@ -245,64 +331,66 @@ export function detectDailyCollect(): void {
   }
 
   // ---------------- Apple Bobbing ----------------
-  if (location.pathname.includes("/halloween/applebobbing.phtml")) {
-    if (!alreadyReported("apple_bobbing")) {
-      const bobContent = document.getElementById("bob_content");
-
-      if (bobContent && bobContent.textContent?.trim()) {
-        console.log("[NAT] Apple Bobbing completed");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "apple_bobbing",
-        });
-
-        markReported("apple_bobbing");
-      }
-    }
-  }
+  detectStandardDaily("apple_bobbing", "/halloween/applebobbing.phtml", () => {
+    const bobContent = document.getElementById("bob_content");
+    return !!bobContent && !!bobContent.textContent?.trim();
+  });
 
   // ---------------- Anchor Management ----------------
   if (location.pathname.includes("/pirates/anchormanagement.phtml")) {
     if (!alreadyReported("anchor_management")) {
-      const text = getPageText();
+      const container = document.body;
 
-      const hasResult =
-        text.includes("krawken") &&
-        (text.includes("left you") ||
-          text.includes("memento") ||
-          text.includes("retreats") ||
-          text.includes("sneaky"));
+      const observer = new MutationObserver(() => {
+        const t = pageText();
 
-      if (hasResult) {
-        console.log("[NAT] Anchor Management completed");
+        const hasResult =
+          t.includes("krawken") &&
+          (t.includes("left you") ||
+            t.includes("memento") ||
+            t.includes("retreats") ||
+            t.includes("sneaky"));
 
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "anchor_management",
-        });
+        if (hasResult) {
+          console.log("[NAT] Anchor Management completed");
 
-        markReported("anchor_management");
-      }
+          autoComplete("anchor_management");
+          markReported("anchor_management");
+          observer.disconnect();
+        }
+      });
+
+      observer.observe(container, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
     }
   }
 
   // ---------------- Mysterious Negg Cave ----------------
   if (location.pathname.includes("/shenkuu/neggcave")) {
-    if (!alreadyReported("mysterious_negg_cave")) {
+    if (alreadyReported("mysterious_negg_cave")) return;
+
+    const observer = new MutationObserver(() => {
       const successPopup = document.getElementById("mnc_popup_generic_correct");
+      const text = document.body.textContent?.toLowerCase() ?? "";
 
-      if (successPopup) {
-        console.log("[NAT] Mysterious Negg Cave completed");
-
+      if (successPopup && !text.includes("already completed")) {
         chrome.runtime.sendMessage({
           type: "AUTO_MARK_COMPLETED",
           activityId: "mysterious_negg_cave",
         });
 
         markReported("mysterious_negg_cave");
+        observer.disconnect();
       }
-    }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
 
   // ---------------- Grave Danger ----------------
@@ -333,7 +421,7 @@ export function detectDailyCollect(): void {
     location.pathname.includes("/halloween/scratch.phtml") ||
     location.pathname.includes("/desert/scratch.phtml")
   ) {
-    const text = getPageText();
+    const text = pageText();
 
     const bought =
       text.includes("thanks for buying a scratchcard") ||
@@ -350,136 +438,65 @@ export function detectDailyCollect(): void {
   }
 
   // ---------------- Wheel of Starlight ----------------
-  if (location.pathname.includes("/premium/wheel.phtml")) {
-    if (!alreadyReported("wheel_of_starlight")) {
-      const text = getPageText();
-
-      const completed = text.includes("stopped orbiting");
-
-      if (completed) {
-        console.log("[NAT] Wheel of Starlight completed");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "wheel_of_starlight",
-        });
-
-        markReported("wheel_of_starlight");
-      }
-    }
-  }
+  detectStandardDaily("wheel_of_starlight", "/premium/wheel.phtml", () =>
+    pageText().includes("stopped orbiting")
+  );
 
   // ---------------- Tombola ----------------
-  if (
-    location.pathname.includes("/island/tombola.phtml") ||
-    location.pathname.includes("/island/tombola2.phtml")
-  ) {
-    if (!alreadyReported("tombola")) {
-      const text = getPageText();
-
-      const completed = text.includes("you put your hand into the tombola");
-
-      if (completed) {
-        console.log("[NAT] Tombola completed");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "tombola",
-        });
-
-        markReported("tombola");
-      }
-    }
-  }
+  detectStandardDaily("tombola", "/island/tombola2", () =>
+    pageText().includes("you put your hand into the tombola")
+  );
 
   // ---------------- Snowager ----------------
-  if (location.pathname.includes("/winter/snowager.phtml")) {
-    if (!alreadyReported("snowager")) {
-      const text = getPageText();
-
-      const attempted =
-        text.includes("you carefully walk in") ||
-        text.includes("rooooaarrr") ||
-        text.includes("The Snowager moves slightly in its sleep") ||
-        text.includes("The Snowager awakes");
-
-      if (attempted) {
-        console.log("[NAT] Snowager attempted");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "snowager",
-        });
-
-        markReported("snowager");
-      }
-    }
-  }
+  detectStandardDaily("snowager", "/winter/snowager.phtml", () => {
+    const t = pageText();
+    return (
+      t.includes("you carefully walk in") ||
+      t.includes("rooooaarrr") ||
+      t.includes("the snowager moves slightly") ||
+      t.includes("the snowager awakes")
+    );
+  });
 
   // ---------------- Guess the Marrow ----------------
-  if (location.pathname.includes("/medieval/guessmarrow.phtml")) {
-    if (!alreadyReported("guess_the_marrow")) {
-      const text = getPageText();
-
-      const attempted = text.includes("right!") || text.includes("wrong!");
-
-      if (attempted) {
-        console.log("[NAT] Guess the Marrow attempted");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "guess_the_marrow",
-        });
-
-        markReported("guess_the_marrow");
-      }
-    }
-  }
+  detectStandardDaily(
+    "guess_the_marrow",
+    "/medieval/guessmarrow.phtml",
+    () => pageText().includes("right!") || pageText().includes("wrong!")
+  );
 
   // ---------------- Wise Old King ----------------
-  if (location.pathname.includes("/medieval/wiseking.phtml")) {
-    if (!alreadyReported("wise_old_king")) {
-      const text = getPageText();
-
-      const completed = text.includes("king hagan listens contently");
-
-      if (completed) {
-        console.log("[NAT] Wise Old King completed");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "wise_old_king",
-        });
-
-        markReported("wise_old_king");
-      }
-    }
-  }
+  detectStandardDaily("wise_old_king", "/medieval/wiseking.phtml", () =>
+    pageText().includes("king hagan listens contently")
+  );
 
   // ---------------- Grumpy Old King ----------------
   if (location.pathname.includes("/medieval/grumpyking.phtml")) {
-    const text = getPageText().toLowerCase();
+    const sessionKey = "grumpy_attempt";
+
+    const text = pageText();
 
     const success = text.includes("king skarl listens as you tell your joke");
+    const locked = text.includes("already told me a joke today");
 
-    const hardLocked = text.includes("you've already told me a joke today");
-
-    if (success) {
-      console.log("[NAT] Grumpy Old King joke submitted");
-
+    if (!sessionStorage.getItem(sessionKey) && success) {
       chrome.runtime.sendMessage({
         type: "AUTO_MARK_COMPLETED",
         activityId: "grumpy_old_king",
       });
+
+      sessionStorage.setItem(sessionKey, "1");
     }
 
-    if (hardLocked) {
-      console.log("[NAT] Grumpy Old King already completed today");
-
+    if (locked) {
       chrome.runtime.sendMessage({
         type: "AUTO_MARK_LOCKED",
         activityId: "grumpy_old_king",
       });
+    }
+
+    if (!success && !locked) {
+      sessionStorage.removeItem(sessionKey);
     }
   }
 
@@ -489,7 +506,7 @@ export function detectDailyCollect(): void {
     location.pathname.includes("/worlds/geraptiku/process_tomb.phtml")
   ) {
     if (!alreadyReported("deserted_tomb")) {
-      const text = getPageText();
+      const text = pageText();
 
       const completed =
         text.includes("fiddlesticks!") ||
@@ -520,7 +537,7 @@ export function detectDailyCollect(): void {
       const container = document.body;
 
       const observer = new MutationObserver(() => {
-        const text = getPageText();
+        const text = pageText();
 
         const spinning = text.includes("round and round and round they go");
 
@@ -553,80 +570,55 @@ export function detectDailyCollect(): void {
   }
 
   // ---------------- Coltzan’s Shrine ----------------
-  if (location.pathname.includes("/desert/shrine.phtml")) {
-    if (!alreadyReported("coltzans_shrine")) {
-      const text = getPageText();
-
-      const completed = text.includes("walks slowly up to the strange shrine");
-
-      if (completed) {
-        console.log("[NAT] Coltzan’s Shrine visited");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "coltzans_shrine",
-        });
-
-        markReported("coltzans_shrine");
-      }
-    }
-  }
+  detectStandardDaily("coltzans_shrine", "/desert/shrine.phtml", () =>
+    pageText().includes("walks slowly up to the strange shrine")
+  );
 
   // ---------------- Kreludor Meteor ----------------
-  if (location.pathname.includes("/moon/meteor.phtml")) {
-    if (!alreadyReported("kreludor_meteor")) {
-      const text = getPageText();
-
-      const completed =
-        text.includes("meteor has cracked open") ||
-        text.includes("now empty space and wonder what happened") ||
-        text.includes("meteor has gotten very very hot") ||
-        text.includes("angry grundo scientist") ||
-        text.includes("meteor just disappeared") ||
-        text.includes("try again later");
-
-      if (completed) {
-        console.log("[NAT] Kreludor Meteor used");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "kreludor_meteor",
-        });
-
-        markReported("kreludor_meteor");
-      }
-    }
-  }
+  detectStandardDaily("kreludor_meteor", "/moon/meteor.phtml", () => {
+    const t = pageText();
+    return (
+      t.includes("meteor has cracked open") ||
+      t.includes("now empty space") ||
+      t.includes("meteor has gotten very very hot") ||
+      t.includes("angry grundo scientist") ||
+      t.includes("meteor just disappeared") ||
+      t.includes("try again later")
+    );
+  });
 
   // ---------------- TDMBGPOP ----------------
   if (location.pathname.includes("/faerieland/tdmbgpop.phtml")) {
-    if (!alreadyReported("tdmbgpop")) {
-      const text = getPageText();
+    if (alreadyReported("tdmbgpop")) return;
+
+    const observer = new MutationObserver(() => {
+      const text = document.body.textContent?.toLowerCase() ?? "";
 
       const completed =
         text.includes("new plushie on the ground nearby") ||
-        text.includes(
-          "you wait around for a bit, but nothing seems to happen"
-        ) ||
+        text.includes("nothing seems to happen") ||
         text.includes("haven't you been feeding") ||
-        text.includes("is so excited to visit the little plushie") ||
-        text.includes("nothing seems to make a neopet feel better") ||
-        text.includes("seeing the poor discarded plushie") ||
-        text.includes("while staring at the discarded plushie") ||
-        text.includes("the plushie remains ever silent") ||
-        text.includes("There is no response from the plushie");
+        text.includes("discarded plushie") ||
+        text.includes("there is no response from the plushie") ||
+        text.includes("The plushie remains") ||
+        text.includes("neopoints");
 
       if (completed) {
-        console.log("[NAT] TDMBGPOP visited");
-
         chrome.runtime.sendMessage({
           type: "AUTO_MARK_COMPLETED",
           activityId: "tdmbgpop",
         });
 
         markReported("tdmbgpop");
+        observer.disconnect();
       }
-    }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   // ---------------- Qasalan Expellibox ----------------
@@ -639,7 +631,7 @@ export function detectDailyCollect(): void {
         location.hostname.includes("ncmall.neopets.com") &&
         location.pathname.includes("/games/giveaway/process_giveaway.phtml");
 
-      const text = getPageText();
+      const text = pageText();
 
       const legitPlayResult =
         text.includes("the scarab travels for miles") ||
@@ -669,73 +661,38 @@ export function detectDailyCollect(): void {
   }
 
   // ---------------- Lunar Puzzle ----------------
-  if (location.pathname.includes("/shenkuu/lunar")) {
-    if (!alreadyReported("lunar_puzzle")) {
-      const text = getPageText();
+  detectStandardDaily("lunar_puzzle", "/shenkuu/lunar", () => {
+    const t = pageText();
+    return (
+      t.includes("that is the correct answer") ||
+      t.includes("only attempt my challenge once per day") ||
+      t.includes("please try again tomorrow")
+    );
+  });
 
-      const completed =
-        // Correct solution
-        text.includes("that is the correct answer") ||
-        // Already attempted today
-        text.includes("you may only attempt my challenge once per day") ||
-        text.includes("please try again tomorrow");
-
-      if (completed) {
-        console.log("[NAT] Lunar Puzzle completed or already done today");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "lunar_puzzle",
-        });
-
-        markReported("lunar_puzzle");
-      }
-    }
-  }
   // ---------------- Potato Counter ----------------
-  if (location.pathname.includes("/medieval/potatocounter.phtml")) {
-    if (!alreadyReported("potato_counter")) {
-      const text = getPageText();
+  detectStandardDaily(
+    "potato_counter",
+    "/medieval/potatocounter.phtml",
+    () =>
+      pageText().includes("you got it right in") ||
+      pageText().includes("hehe, no there were") ||
+      pageText().includes("sorry... wrong") ||
+      pageText().includes("play again")
+  );
 
-      const attempted =
-        text.includes("you got it right in") ||
-        text.includes("hehe, no there were") ||
-        text.includes("sorry... wrong") ||
-        text.includes("play again");
-
-      if (attempted) {
-        console.log("[NAT] Potato Counter attempt used");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "potato_counter",
-        });
-
-        markReported("potato_counter");
-      }
-    }
-  }
   // ---------------- Forgotten Shore ----------------
-  if (location.pathname.includes("/pirates/forgottenshore.phtml")) {
-    if (!alreadyReported("forgotten_shore")) {
-      const text = getPageText();
-
-      const completed =
-        text.includes("nothing of interest to be found today") ||
-        text.includes("you found something buried in the sand");
-
-      if (completed) {
-        console.log("[NAT] Forgotten Shore searched");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "forgotten_shore",
-        });
-
-        markReported("forgotten_shore");
-      }
+  detectStandardDaily(
+    "forgotten_shore",
+    "/pirates/forgottenshore.phtml",
+    () => {
+      const t = pageText();
+      return (
+        t.includes("nothing of interest to be found today") ||
+        t.includes("you found something buried in the sand")
+      );
     }
-  }
+  );
 
   const HEALING_SPRINGS_PHRASES = [
     "the water faerie says a few magical words",
@@ -803,109 +760,20 @@ export function detectDailyCollect(): void {
   }
 
   // ---------------- Test Your Strength ----------------
-  if (
-    location.pathname.includes("/halloween/strtest/process_strtest.phtml") ||
-    location.pathname.includes("/halloween/strtest/index.phtml")
-  ) {
-    if (!alreadyReported("test_your_strength")) {
-      const text = getPageText().toLowerCase();
-
-      const played =
-        location.pathname.includes("process_strtest") ||
-        text.includes("view prize") ||
-        text.includes("congratulations");
-
-      if (played) {
-        console.log("[NAT] Test Your Strength detected");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "test_your_strength",
-        });
-
-        markReported("test_your_strength");
-      }
-    }
-  }
+  detectStandardDaily("test_your_strength", "/halloween/strtest", () => {
+    const t = pageText();
+    return (
+      location.pathname.includes("process_strtest") ||
+      t.includes("view prize") ||
+      t.includes("congratulations")
+    );
+  });
 
   // ---------------- Buried Treasure ----------------
-  if (
-    location.pathname.includes("/pirates/buriedtreasure/buriedtreasure.phtml")
-  ) {
-    if (!alreadyReported("buried_treasure")) {
-      const hasCoords = location.search.length > 1;
-      const text = getPageText().toLowerCase();
-
-      const completed = hasCoords || text.includes("pulls out a ticket");
-
-      if (completed) {
-        console.log("[NAT] Buried Treasure completed");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "buried_treasure",
-        });
-
-        markReported("buried_treasure");
-      }
-    }
-  }
-  // ---------------- Bagatelle ----------------
-  // ---------- IMMEDIATE URL-BASED DETECTIONS ----------
-
-  (function immediateDetections() {
-    // Bagatelle auto-play
-    if (location.pathname === "/halloween/process_bagatelle.phtml") {
-      console.log("[NAT] Immediate Bagatelle process endpoint detected");
-
-      chrome.runtime.sendMessage({
-        type: "AUTO_MARK_COMPLETED",
-        activityId: "bagatelle",
-      });
-
-      markReported("bagatelle");
-    }
-  })();
-
-  // Auto-play endpoint (NO HTML response)
-  if (location.pathname === "/halloween/process_bagatelle.phtml") {
-    if (!alreadyReported("bagatelle")) {
-      console.log("[NAT] Bagatelle auto-play detected");
-
-      chrome.runtime.sendMessage({
-        type: "AUTO_MARK_COMPLETED",
-        activityId: "bagatelle",
-      });
-
-      markReported("bagatelle");
-    }
-  }
-
-  // Flash / legacy fallback (if DOM text is ever readable)
-  if (location.pathname === "/halloween/bagatelle.phtml") {
-    if (!alreadyReported("bagatelle")) {
-      const text = getPageText().toLowerCase();
-
-      const phrases = [
-        "jackpot",
-        "you won",
-        "we have a loser",
-        "congratulations",
-        "this game must be rigged",
-        "awwwwww",
-        "nice one",
-      ];
-
-      if (phrases.some((p) => text.includes(p))) {
-        console.log("[NAT] Bagatelle result text detected");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "bagatelle",
-        });
-
-        markReported("bagatelle");
-      }
-    }
-  }
+  detectStandardDaily(
+    "buried_treasure",
+    "/pirates/buriedtreasure/buriedtreasure.phtml",
+    () =>
+      location.search.length > 1 || pageText().includes("pulls out a ticket")
+  );
 }

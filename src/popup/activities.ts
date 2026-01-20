@@ -320,38 +320,6 @@ function render(activities: ActivityView[], root: HTMLElement): void {
   }
 }
 
-// ---------- Load ----------
-// function loadActivities(): void {
-//   chrome.runtime.sendMessage(
-//     { type: "GET_ACTIVITIES" },
-//     (response: GetActivitiesResponse | undefined) => {
-//       render(response?.activities ?? []);
-//     }
-//   );
-// }
-
-// loadActivities();
-// const container = document.getElementById("page-container")!;
-
-// async function loadPage(page: string) {
-//   const res = await fetch(`./${page}.html`);
-//   container.innerHTML = await res.text();
-
-//   if (page === "activities") {
-//     loadActivities(); // your existing function
-//   }
-// }
-
-// function setupNavigation() {
-//   document
-//     .querySelectorAll<HTMLButtonElement>(".popup-nav button")
-//     .forEach((btn) => {
-//       btn.addEventListener("click", () => {
-//         loadPage(btn.dataset.page!);
-//       });
-//     });
-// }
-
 export function initActivitiesPage() {
   const root = document.getElementById("activity-list");
   if (!root) {

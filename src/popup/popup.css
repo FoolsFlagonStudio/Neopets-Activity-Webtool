@@ -1,94 +1,102 @@
+/* ================================
+   Base / Layout
+================================ */
+
 body {
   width: 500px;
 }
 
-.category-header {
-  margin-top: 10px;
-  padding-left: 0.5rem;
-  font-weight: bold;
-  text-transform: uppercase;
-  font-size: 11px;
-  color: #666;
-}
-
-.activity-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 6px 4px;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.activity-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status {
-  font-weight: bold;
-}
-
-.status.ready {
-  color: green;
-}
-
-.status.locked {
-  color: #999;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* ================================
+   Category Headers
+================================ */
 
 .category-header {
-  font-size: 0.9rem;
-  color: #6c757d;
-  margin-bottom: 4px;
+  margin-top: 12px;
+  margin-bottom: 6px;
   padding-bottom: 4px;
+  padding-left: 0.5rem;
+
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6c757d;
+
   border-bottom: 1px solid #e5e5e5;
 }
 
+/* ================================
+   Activity Grid Items
+================================ */
+
 .activity {
+  position: relative;
+
   min-height: 140px;
+  padding: 6px;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 6px;
+
   border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
+.activity:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Activity icon */
 .activity img {
   width: 48px;
   height: 48px;
   object-fit: contain;
 }
 
+/* Activity name */
 .activity p.fw-semibold {
   line-height: 1.2;
-  min-height: 2em; /* locks name to 2 lines max */
+  min-height: 2em; /* lock name to two lines */
   margin-bottom: 2px;
 }
 
+/* Status line */
 .activity p.mb-0 {
   min-height: 1.2em;
 }
 
-.activity:hover {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 6px;
+/* ================================
+   Status Colors
+================================ */
+
+.text-success {
+  color: #198754;
 }
+
+.text-warning {
+  color: #fd7e14;
+}
+
+.text-muted {
+  color: #6c757d;
+}
+
+/* ================================
+   Info Tooltip
+================================ */
 
 .activity-info {
   position: absolute;
   top: 4px;
   right: 6px;
+
   font-size: 1.25rem;
   cursor: help;
   opacity: 0.7;
   user-select: none;
+
+  transition: opacity 0.15s ease;
 }
 
 .activity-info:hover {
@@ -97,13 +105,16 @@ button:disabled {
 
 .activity-tooltip {
   display: none;
+
   position: absolute;
-  right: 0;
   top: 16px;
+  right: 0;
+
   background: #ffffff;
   border: 1px solid #ccc;
-  padding: 6px;
   border-radius: 4px;
+  padding: 6px;
+
   font-size: 0.75rem;
   white-space: nowrap;
   z-index: 10;
@@ -123,37 +134,73 @@ button:disabled {
   text-decoration: underline;
 }
 
-/* ---------- Navigation ---------- */
+/* ================================
+   Navigation
+================================ */
 
 .popup-nav {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
   position: sticky;
   top: 0;
   z-index: 10;
+
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.nav-tab {
-  appearance: none;
-  border: 1px solid transparent;
+.popup-nav button {
+  flex: 1;
+
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+
   background: transparent;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
-  font-weight: 500;
   color: #6b7280;
-  border-radius: 6px;
+
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
+
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.nav-tab:hover {
-  background: #f3f4f6;
+.popup-nav button:hover {
+  background: #e5e7eb;
 }
 
-.nav-tab.active {
-  color: #111827;
-  background: #f9fafb;
-  border-color: #e5e7eb;
+.popup-nav button.active {
+  background: #323741;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ================================
+   Disabled States
+================================ */
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ================================
+   Info Page
+================================ */
+
+.info-page h6 {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.info-page p {
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.info-page ul {
+  padding-left: 1rem;
 }

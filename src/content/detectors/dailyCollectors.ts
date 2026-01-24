@@ -349,7 +349,8 @@ export function detectDailyCollect(): void {
           (t.includes("left you") ||
             t.includes("memento") ||
             t.includes("retreats") ||
-            t.includes("sneaky"));
+            t.includes("sneaky")) ||
+            t.includes("never been safer");
 
         if (hasResult) {
           console.log("[NAT] Anchor Management completed");

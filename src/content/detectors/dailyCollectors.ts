@@ -350,7 +350,8 @@ export function detectDailyCollect(): void {
             t.includes("memento") ||
             t.includes("retreats") ||
             t.includes("sneaky")) ||
-            t.includes("never been safer");
+            t.includes("never been safer") ||
+            t.includes("At long last, Krawk Island has been restored and is now better than ever!");
 
         if (hasResult) {
           console.log("[NAT] Anchor Management completed");

@@ -563,15 +563,15 @@ export const ACTIVITIES: ActivityDefinition[] = [
     cooldownMinutes: 360,
     notes: "Every 6 hours",
     links: [
-      {
-        label: "Play Test Your Strength",
-        url: "https://www.neopets.com/halloween/strtest/index.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Play Test Your Strength",
+      //   url: "https://www.neopets.com/halloween/strtest/index.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play Test Your Strength",
         url: "https://www.neopets.com/halloween/strtest/process_strtest.phtml",
-        kind: "helper",
+        kind: "action",
         tooltip: "Use if flash is broken",
       },
     ],
@@ -630,15 +630,15 @@ export const ACTIVITIES: ActivityDefinition[] = [
     resetTimezone: "America/Los_Angeles",
     resetHour: 0,
     links: [
-      {
-        label: "Play",
-        url: "https://www.neopets.com/halloween/bagatelle.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Play",
+      //   url: "https://www.neopets.com/halloween/bagatelle.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play",
         url: "https://www.neopets.com/halloween/process_bagatelle.phtml",
-        kind: "helper",
+        kind: "action",
         tooltip: "Use if Flash is broken",
       },
     ],
@@ -654,11 +654,11 @@ export const ACTIVITIES: ActivityDefinition[] = [
     notes:
       "Up to 20 plays per day. Flash may not work; auto-play link supported.",
     links: [
-      {
-        label: "Play Cork Gun",
-        url: "https://www.neopets.com/halloween/corkgun.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Play Cork Gun",
+      //   url: "https://www.neopets.com/halloween/corkgun.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play Cork Gun",
         url: "https://www.neopets.com/halloween/process_corkgun.phtml",
@@ -678,15 +678,15 @@ export const ACTIVITIES: ActivityDefinition[] = [
     notes:
       "Up to 20 plays per day. Flash may not work; auto-play links supported.",
     links: [
-      {
-        label: "Coconut Shy",
-        url: "https://www.neopets.com/halloween/coconutshy.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Coconut Shy",
+      //   url: "https://www.neopets.com/halloween/coconutshy.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play Coconut Shy",
         url: "https://www.neopets.com/halloween/process_cocoshy.phtml?coconut=1",
-        kind: "helper",
+        kind: "action",
         tooltip: "Replace coconut number to play different coconuts",
       },
     ],

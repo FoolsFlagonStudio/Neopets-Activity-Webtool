@@ -607,7 +607,8 @@ export function detectDailyCollect(): void {
         text.includes("there is no response from the plushie") ||
         text.includes("The plushie remains") ||
         text.includes("neopoints") ||
-        text.includes("is so excited");
+        text.includes("is so excited") ||
+        text.includes("You have already visited the plushie today");
 
       if (completed) {
         chrome.runtime.sendMessage({

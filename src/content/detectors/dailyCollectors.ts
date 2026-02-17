@@ -195,7 +195,7 @@ function incrementDaily(activityId: string): void {
 function detectStandardDaily(
   activityId: string,
   pathMatch: string,
-  completed: () => boolean
+  completed: () => boolean,
 ): void {
   if (!location.pathname.includes(pathMatch)) return;
   if (alreadyReported(activityId)) return;
@@ -231,7 +231,7 @@ export function detectDailyCollect(): void {
     () =>
       pageText().includes("you take some") ||
       pageText().includes("the jelly keeper") ||
-      pageText().includes("remember... only one helping per day")
+      pageText().includes("remember... only one helping per day"),
   );
 
   // -------- GIANT OMELETTE --------
@@ -240,14 +240,15 @@ export function detectDailyCollect(): void {
     "/prehistoric/omelette.phtml",
     () =>
       pageText().includes("take a slice") ||
-      pageText().includes("manage to take a slice")
+      pageText().includes("manage to take a slice"),
   );
 
   // ---------------- Bank Interest ----------------
   detectStandardDaily(
     "bank_interest",
     "/bank.phtml",
-    () => pageText().includes("collected") && pageText().includes("np interest")
+    () =>
+      pageText().includes("collected") && pageText().includes("np interest"),
   );
 
   // Money Tree + Rubbish Dump
@@ -263,7 +264,7 @@ export function detectDailyCollect(): void {
     "/shop_of_offers.phtml",
     () =>
       pageText().includes("something has happened") &&
-      pageText().includes("very rich slorg")
+      pageText().includes("very rich slorg"),
   );
 
   // ---------------- Trudy’s Surprise ----------------
@@ -314,7 +315,7 @@ export function detectDailyCollect(): void {
 
       // Structural fallback: no pickup button
       const hasPickupAction = document.querySelector(
-        "input[type='submit'], button"
+        "input[type='submit'], button",
       );
 
       if (successText || blockedText || !hasPickupAction) {
@@ -345,13 +346,15 @@ export function detectDailyCollect(): void {
         const t = pageText();
 
         const hasResult =
-          t.includes("krawken") &&
-          (t.includes("left you") ||
-            t.includes("memento") ||
-            t.includes("retreats") ||
-            t.includes("sneaky")) ||
-            t.includes("never been safer") ||
-            t.includes("At long last, Krawk Island has been restored and is now better than ever!");
+          (t.includes("krawken") &&
+            (t.includes("left you") ||
+              t.includes("memento") ||
+              t.includes("retreats") ||
+              t.includes("sneaky"))) ||
+          t.includes("never been safer") ||
+          t.includes(
+            "At long last, Krawk Island has been restored and is now better than ever!",
+          );
 
         if (hasResult) {
           console.log("[NAT] Anchor Management completed");
@@ -401,7 +404,7 @@ export function detectDailyCollect(): void {
 
     if (remainingEl?.textContent) {
       const remainingMs = parseRemainingTime(
-        remainingEl.textContent.toLowerCase()
+        remainingEl.textContent.toLowerCase(),
       );
 
       if (remainingMs > 0) {
@@ -441,12 +444,12 @@ export function detectDailyCollect(): void {
 
   // ---------------- Wheel of Starlight ----------------
   detectStandardDaily("wheel_of_starlight", "/premium/wheel.phtml", () =>
-    pageText().includes("stopped orbiting")
+    pageText().includes("stopped orbiting"),
   );
 
   // ---------------- Tombola ----------------
   detectStandardDaily("tombola", "/island/tombola2", () =>
-    pageText().includes("you put your hand into the tombola")
+    pageText().includes("you put your hand into the tombola"),
   );
 
   // ---------------- Snowager ----------------
@@ -464,12 +467,12 @@ export function detectDailyCollect(): void {
   detectStandardDaily(
     "guess_the_marrow",
     "/medieval/guessmarrow.phtml",
-    () => pageText().includes("right!") || pageText().includes("wrong!")
+    () => pageText().includes("right!") || pageText().includes("wrong!"),
   );
 
   // ---------------- Wise Old King ----------------
   detectStandardDaily("wise_old_king", "/medieval/wiseking.phtml", () =>
-    pageText().includes("king hagan listens contently")
+    pageText().includes("king hagan listens contently"),
   );
 
   // ---------------- Grumpy Old King ----------------
@@ -573,7 +576,7 @@ export function detectDailyCollect(): void {
 
   // ---------------- Coltzan’s Shrine ----------------
   detectStandardDaily("coltzans_shrine", "/desert/shrine.phtml", () =>
-    pageText().includes("walks slowly up to the strange shrine")
+    pageText().includes("walks slowly up to the strange shrine"),
   );
 
   // ---------------- Kreludor Meteor ----------------
@@ -603,7 +606,8 @@ export function detectDailyCollect(): void {
         text.includes("discarded plushie") ||
         text.includes("there is no response from the plushie") ||
         text.includes("The plushie remains") ||
-        text.includes("neopoints");
+        text.includes("neopoints") ||
+        text.includes("is so excited");
 
       if (completed) {
         chrome.runtime.sendMessage({
@@ -680,7 +684,7 @@ export function detectDailyCollect(): void {
       pageText().includes("you got it right in") ||
       pageText().includes("hehe, no there were") ||
       pageText().includes("sorry... wrong") ||
-      pageText().includes("play again")
+      pageText().includes("play again"),
   );
 
   // ---------------- Forgotten Shore ----------------
@@ -693,7 +697,7 @@ export function detectDailyCollect(): void {
         t.includes("nothing of interest to be found today") ||
         t.includes("you found something buried in the sand")
       );
-    }
+    },
   );
 
   const HEALING_SPRINGS_PHRASES = [
@@ -713,7 +717,7 @@ export function detectDailyCollect(): void {
       const text = getPageText().toLowerCase();
 
       const healed = HEALING_SPRINGS_PHRASES.some((phrase) =>
-        text.includes(phrase)
+        text.includes(phrase),
       );
 
       if (healed) {
@@ -745,7 +749,7 @@ export function detectDailyCollect(): void {
       const text = getPageText().toLowerCase();
 
       const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) =>
-        text.includes(phrase)
+        text.includes(phrase),
       );
 
       if (triggered) {
@@ -776,6 +780,6 @@ export function detectDailyCollect(): void {
     "buried_treasure",
     "/pirates/buriedtreasure/buriedtreasure.phtml",
     () =>
-      location.search.length > 1 || pageText().includes("pulls out a ticket")
+      location.search.length > 1 || pageText().includes("pulls out a ticket"),
   );
 }

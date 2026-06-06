@@ -1,11 +1,15 @@
 import { detectWheels } from "./detectors/wheelDetectors";
-import { detectHealingSprings } from "./detectors/springDetectors";
 import { detectDailyCollect } from "./detectors/dailyCollectors";
+import { applyShopOverlay, reapplyShopOverlay } from "./detectors/shopOverlay";
+
+// Initial overlay pass — async, loads price store from storage once and caches it.
+applyShopOverlay();
 
 function runDetectors(): void {
   detectWheels();
-  detectHealingSprings();
   detectDailyCollect();
+  // Cheap re-apply: exits immediately if all cards are already processed.
+  reapplyShopOverlay();
 }
 
 runDetectors();

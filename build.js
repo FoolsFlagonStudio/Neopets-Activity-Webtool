@@ -19,13 +19,16 @@ function copyDir(src, dest) {
 
 const watch = process.argv.includes("--watch");
 
+// Main bundle — ESM modules for background, content scripts, and popup.
 const ctx = await esbuild.context({
   entryPoints: {
     background: "./src/background/index.ts",
     content: "./src/content/index.ts",
+    itemdb_content: "./src/content/itemdb.ts",
     nav: "./src/popup/nav.ts",
     activities: "./src/popup/activities.ts",
     info: "./src/popup/info.ts",
+    restock: "./src/popup/restock.ts",
   },
 
   outdir: "dist",

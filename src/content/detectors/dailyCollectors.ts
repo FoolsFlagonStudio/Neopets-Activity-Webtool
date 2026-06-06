@@ -493,11 +493,12 @@ export function detectDailyCollect(): void {
       sessionStorage.setItem(sessionKey, "1");
     }
 
-    if (locked) {
+    if (locked && !alreadyReported("grumpy_old_king_locked")) {
       chrome.runtime.sendMessage({
         type: "AUTO_MARK_LOCKED",
         activityId: "grumpy_old_king",
       });
+      markReported("grumpy_old_king_locked");
     }
 
     if (!success && !locked) {

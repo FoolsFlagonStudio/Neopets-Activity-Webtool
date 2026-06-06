@@ -18,6 +18,11 @@
       "matches": ["https://www.neopets.com/*"],
       "js": ["dist/content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://itemdb.com.br/restock/*"],
+      "js": ["dist/itemdb_content.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
@@ -42,6 +47,7 @@
   "host_permissions": [
     "https://www.neopets.com/*",
     "https://ncmall.neopets.com/*",
-    "http://ncmall.neopets.com/*"
+    "http://ncmall.neopets.com/*",
+    "https://itemdb.com.br/*"
   ]
 }

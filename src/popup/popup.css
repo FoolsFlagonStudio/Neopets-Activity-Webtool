@@ -204,3 +204,75 @@ button:disabled {
 .info-page ul {
   padding-left: 1rem;
 }
+
+/* ================================
+   Restock Page
+================================ */
+
+.restock-page {
+  font-size: 0.875rem;
+}
+
+.shop-group summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  padding: 4px 0;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.shop-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.shop-group summary::before {
+  content: "▶ ";
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+
+.shop-group[open] summary::before {
+  content: "▼ ";
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.shop-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.shop-row input[type="checkbox"] {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.shop-name {
+  flex: 1;
+}
+
+.shop-ts {
+  font-size: 0.7rem;
+  white-space: nowrap;
+  color: #9ca3af;
+}
+
+.btn-xs {
+  padding: 2px 7px;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  line-height: 1.4;
+}

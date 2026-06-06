@@ -1,4 +1,4 @@
-import type { BaseActivityDefinition } from "../types/activity";
+import type { ActivityDefinition } from "../types/activity";
 
 type AvailabilityStatus = "AVAILABLE" | "LOCKED" | "SOON";
 
@@ -12,7 +12,7 @@ interface ActivityStateLite {
 }
 
 interface ActivityView {
-  definition: BaseActivityDefinition;
+  definition: ActivityDefinition;
   state: ActivityStateLite;
   availability: AvailabilityResult;
 }
@@ -38,7 +38,7 @@ function resolveState(
   activity: ActivityView,
   allActivities: ActivityView[]
 ): ActivityStateLite {
-  const sharedWith = (activity.definition as any).sharedWith;
+  const { sharedWith } = activity.definition;
   if (!sharedWith) return activity.state;
 
   const shared = allActivities.find((a) => a.definition.id === sharedWith);
@@ -67,22 +67,19 @@ function titleCase(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function getPrimaryLink(def: BaseActivityDefinition): string | null {
+function getPrimaryLink(def: ActivityDefinition): string | null {
   return def.links?.find((l) => l.kind === "action")?.url ?? null;
 }
 
 // ---------- DAILY_LIMIT label helper ----------
 function getLimitLabel(
-  definition: BaseActivityDefinition,
+  definition: ActivityDefinition,
   state: ActivityStateLite
 ): string | null {
   if (definition.timingType !== "DAILY_LIMIT") return null;
 
-  // Narrowing happens here
-  if (typeof (definition as any).maxPerDay !== "number") return null;
-
   const used = state.usesToday ?? 0;
-  return `${used} / ${(definition as any).maxPerDay}`;
+  return `${used} / ${definition.maxPerDay}`;
 }
 
 // ---------- Time formatting ----------
@@ -100,7 +97,7 @@ function resolveAvailability(
   activity: ActivityView,
   allActivities: ActivityView[]
 ): AvailabilityResult {
-  const sharedWith = (activity.definition as any).sharedWith;
+  const { sharedWith } = activity.definition;
   if (!sharedWith) return activity.availability;
 
   const shared = allActivities.find((a) => a.definition.id === sharedWith);

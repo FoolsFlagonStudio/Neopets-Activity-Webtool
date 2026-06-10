@@ -287,7 +287,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "INCREMENT_DAILY_COUNT") {
     const { activityId } = message;
 
-    const ALLOWED_INCREMENT_IDS = new Set(["money_tree"]);
+    const ALLOWED_INCREMENT_IDS = new Set(["money_tree", "haunted_woods_hunt"]);
 
     if (!ALLOWED_INCREMENT_IDS.has(activityId)) {
       console.warn("[NAT] Blocked invalid increment:", activityId);

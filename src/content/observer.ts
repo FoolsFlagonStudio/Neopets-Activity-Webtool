@@ -1,9 +1,13 @@
 import { detectWheels } from "./detectors/wheelDetectors";
 import { detectDailyCollect } from "./detectors/dailyCollectors";
 import { applyShopOverlay, reapplyShopOverlay } from "./detectors/shopOverlay";
+import { applyShopPricingOverlay } from "./detectors/shopPricingOverlay";
+import { detectTraining } from "./detectors/trainingDetector";
 
-// Initial overlay pass — async, loads price store from storage once and caches it.
+// Initial overlay passes — each exits immediately if not on the right page.
 applyShopOverlay();
+applyShopPricingOverlay();
+detectTraining();
 
 function runDetectors(): void {
   detectWheels();

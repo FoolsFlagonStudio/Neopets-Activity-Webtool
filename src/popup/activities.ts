@@ -1,6 +1,6 @@
 import type { ActivityDefinition } from "../types/activity";
 
-type AvailabilityStatus = "AVAILABLE" | "LOCKED" | "SOON";
+type AvailabilityStatus = "AVAILABLE" | "LOCKED" | "SOON" | "TIME_LOCKED";
 
 interface AvailabilityResult {
   status: AvailabilityStatus;
@@ -110,11 +110,13 @@ function availabilityLabel(
 ): string {
   const { availability, definition } = activity;
 
-  // -------- Special cases --------
-  if (definition.id === "snowager" && availability.status === "AVAILABLE") {
-    return "Check time window in notes";
+  // -------- TIME_LOCKED — outside allowed time window --------
+  if (availability.status === "TIME_LOCKED") {
+    const next = availability.msUntilAvailable;
+    return next !== undefined ? `Closed · ${formatDuration(next)}` : "Closed";
   }
 
+  // -------- Special cases --------
   // Guess the Marrow & Wise Old King (no limits)
   if (
     (definition.id === "guess_the_marrow" ||
@@ -322,6 +324,22 @@ export function initActivitiesPage() {
   if (!root) {
     console.warn("[NAT] activity-list not found");
     return;
+  }
+
+  // NST clock
+  const clockEl = document.getElementById("nst-clock");
+  if (clockEl) {
+    const tick = () => {
+      clockEl.textContent = new Date().toLocaleTimeString("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }) + " NST";
+    };
+    tick();
+    setInterval(tick, 1000);
   }
 
   chrome.runtime.sendMessage(

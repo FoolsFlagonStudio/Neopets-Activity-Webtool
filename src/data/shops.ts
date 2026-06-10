@@ -9,7 +9,7 @@ export const SHOPS: ShopDefinition[] = [
   { id: "collectable_card_shop",   name: "Collectible Card Shop",   category: "Collectibles", neopetsTypeId: 8,  itemdbSlug: "collectable-card-shop" },
   { id: "neopian_post_office",     name: "Neopian Post Office",     category: "Collectibles", neopetsTypeId: 58, itemdbSlug: "neopian-post-office" },
   { id: "collectable_coins",       name: "Collectable Coins",       category: "Collectibles", neopetsTypeId: 68, itemdbSlug: "collectable-coins" },
-  { id: "collectible_sea_shells",  name: "Collectible Sea Shells",  category: "Collectibles", neopetsTypeId: 86, itemdbSlug: "collectible-sea-shells" },
+  { id: "collectable_sea_shells",  name: "Collectable Sea Shells",  category: "Collectibles", neopetsTypeId: 86, itemdbSlug: "collectable-sea-shells" },
 
   // ── Food ──────────────────────────────────────────────────────────────────
   { id: "neopian_fresh_foods",             name: "Neopian Fresh Foods",           category: "Food", neopetsTypeId: 1,   itemdbSlug: "neopian-fresh-foods" },

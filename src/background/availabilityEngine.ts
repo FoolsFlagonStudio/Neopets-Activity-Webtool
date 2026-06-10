@@ -6,7 +6,7 @@ import {
 import type { AvailabilityResult } from "../types/availability";
 import { ACTIVITIES } from "../data/activities";
 import { loadActivityState } from "./stateManager";
-import { getDateKeyInTimezone } from "../utils/npt";
+import { getDateKeyInTimezone, getTimeParts } from "../utils/npt";
 
 /**
  * Returns all activities with computed availability
@@ -126,7 +126,55 @@ export function computeAvailability(
     }
 
     case "WINDOWED": {
-      return { status: "LOCKED" };
+      const tz = definition.windowTimezone ?? "America/Los_Angeles";
+      const tp = getTimeParts(now, tz);
+
+      // Done today — locked for the rest of the day
+      if (definition.maxPerDay && state.lastCompletedAt) {
+        const lastDoneDay = getDateKeyInTimezone(state.lastCompletedAt, tz);
+        const today = getDateKeyInTimezone(now, tz);
+        if (lastDoneDay === today) {
+          return { status: "LOCKED" };
+        }
+      }
+
+      // Seasonal full-day override (e.g. Snowager Dec 1–Jan 3)
+      if (definition.seasonalFullDay) {
+        const { startMonth, startDay, endMonth, endDay } = definition.seasonalFullDay;
+        const m = tp.month;
+        const d = tp.day;
+        const inRange =
+          (m === startMonth && d >= startDay) ||
+          (m === endMonth && d <= endDay) ||
+          (startMonth > endMonth
+            ? m > startMonth || m < endMonth
+            : m > startMonth && m < endMonth);
+        if (inRange) return { status: "AVAILABLE" };
+      }
+
+      // Check time windows
+      const currentMinutes = tp.hour * 60 + tp.minute;
+      let msToNextWindow = Infinity;
+
+      for (const win of definition.allowedWindows) {
+        const [startH, startM] = win.start.split(":").map(Number);
+        const [endH, endM] = win.end.split(":").map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+
+        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+          return { status: "AVAILABLE" };
+        }
+
+        let minUntilStart = startMinutes - currentMinutes;
+        if (minUntilStart <= 0) minUntilStart += 24 * 60;
+        msToNextWindow = Math.min(msToNextWindow, minUntilStart * 60 * 1000);
+      }
+
+      return {
+        status: "TIME_LOCKED",
+        msUntilAvailable: isFinite(msToNextWindow) ? msToNextWindow : undefined,
+      };
     }
 
     case "CONDITIONAL": {

@@ -1,6 +1,7 @@
 import { initActivitiesPage } from "./activities";
 import { initInfoPage } from "./info";
 import { initRestockPage } from "./restock";
+import { initTrainingPage } from "./training";
 
 const container = document.getElementById("page-container")!;
 
@@ -11,6 +12,7 @@ async function loadPage(page: string) {
   if (page === "activities") initActivitiesPage();
   if (page === "info") initInfoPage();
   if (page === "restock") initRestockPage();
+  if (page === "training") initTrainingPage();
 }
 
 function setupNavigation() {

@@ -7,6 +7,19 @@ body {
 }
 
 /* ================================
+   NST Clock
+================================ */
+
+#nst-clock {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-align: right;
+  padding: 2px 10px 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ================================
    Category Headers
 ================================ */
 
@@ -275,4 +288,105 @@ button:disabled {
   font-size: 0.7rem;
   border-radius: 4px;
   line-height: 1.4;
+}
+
+/* ================================
+   Training Page
+================================ */
+
+.tr-sync-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.tr-sync-btn {
+  padding: 3px 9px;
+  font-size: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.tr-sync-btn:hover {
+  background: #e5e7eb;
+}
+
+.tr-age {
+  flex: 1;
+  text-align: right;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.tr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.85rem;
+}
+
+.tr-row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.tr-name {
+  flex: 0 0 150px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tr-stat {
+  flex: 0 0 75px;
+  color: #4b5563;
+  font-size: 0.82rem;
+}
+
+.tr-stat.tr-idle {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.tr-timer {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+
+.tr-timer.tr-active {
+  color: #2563eb;
+}
+
+.tr-timer.tr-done {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.tr-source {
+  flex: 0 0 54px;
+  text-align: right;
+  font-size: 0.68rem;
+  color: #9ca3af;
+}
+
+.tr-complete .tr-name {
+  color: #16a34a;
+}
+
+.tr-empty {
+  padding: 20px 12px;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  text-align: center;
+  line-height: 1.5;
 }

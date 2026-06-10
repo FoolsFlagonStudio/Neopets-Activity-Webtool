@@ -310,11 +310,16 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "snowager",
     name: "Snowager",
     category: "dailies",
-    timingType: "DAILY_RESET",
-    resetTimezone: "America/Los_Angeles",
-    notes:
-      "Available at 6-7am, 2-3pm, 10-11pm npt / pst (or all day Dec 1–Jan 3)",
-    resetHour: 0,
+    timingType: "WINDOWED",
+    allowedWindows: [
+      { start: "06:00", end: "07:00" },
+      { start: "14:00", end: "15:00" },
+      { start: "22:00", end: "23:00" },
+    ],
+    windowTimezone: "America/Los_Angeles",
+    maxPerDay: 1,
+    seasonalFullDay: { startMonth: 12, startDay: 1, endMonth: 1, endDay: 3 },
+    notes: "Available 6–7am, 2–3pm, 10–11pm NST/PST (all day Dec 1–Jan 3)",
     links: [
       {
         label: "Snowager",

@@ -1,3 +1,5 @@
+import { getDateKeyInTimezone } from "../../utils/npt";
+
 function alreadyReported(key: string): boolean {
   return sessionStorage.getItem(key) === "1";
 }
@@ -746,23 +748,42 @@ export function detectDailyCollect(): void {
   ];
 
   // ---------------- Haunted Woods Hunt ----------------
+  // Tracks 5 item-clicks per session; 5 clicks = 1 use (max 2/day).
+  // Uses localStorage so counts survive page reloads between clicks.
   if (location.pathname.includes("/halloween/haunted_woods_hunt.phtml")) {
-    if (!alreadyReported("haunted_woods_hunt")) {
-      const text = getPageText().toLowerCase();
+    const text = getPageText().toLowerCase();
+    const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
 
-      const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) =>
-        text.includes(phrase),
-      );
-
+    // "Come back tomorrow" means both sessions are exhausted — mark fully done.
+    if (text.includes("come back tomorrow")) {
+      const doneKey = `nat_hwh_done_${today}`;
+      if (!localStorage.getItem(doneKey)) {
+        localStorage.setItem(doneKey, "1");
+        chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+        chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+      }
+    } else {
+      const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) => text.includes(phrase));
       if (triggered) {
-        console.log("[NAT] Haunted Woods Hunt detected");
+        const clicksKey = `nat_hwh_clicks_${today}`;
+        const fingerprintKey = `nat_hwh_fp_${today}`;
+        const fingerprint = text.slice(100, 600);
+        const lastFp = localStorage.getItem(fingerprintKey);
 
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "haunted_woods_hunt",
-        });
+        // Dedup: same page result appearing twice (e.g. MutationObserver re-fire)
+        if (fingerprint !== lastFp) {
+          localStorage.setItem(fingerprintKey, fingerprint);
 
-        markReported("haunted_woods_hunt");
+          const clicks = (parseInt(localStorage.getItem(clicksKey) ?? "0", 10) || 0) + 1;
+          localStorage.setItem(clicksKey, String(clicks));
+
+          console.log(`[NAT] HWH click ${clicks}/10`);
+
+          // Every 5 clicks = 1 completed session
+          if (clicks === 5 || clicks === 10) {
+            chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+          }
+        }
       }
     }
   }

@@ -129,12 +129,16 @@ export function computeAvailability(
       const tz = definition.windowTimezone ?? "America/Los_Angeles";
       const tp = getTimeParts(now, tz);
 
-      // Done today — locked for the rest of the day
-      if (definition.maxPerDay && state.lastCompletedAt) {
-        const lastDoneDay = getDateKeyInTimezone(state.lastCompletedAt, tz);
-        const today = getDateKeyInTimezone(now, tz);
-        if (lastDoneDay === today) {
-          return { status: "LOCKED" };
+      // Check daily cap — single-use tracks lastCompletedAt, multi-use tracks usesToday
+      if (definition.maxPerDay) {
+        if (definition.maxPerDay === 1) {
+          if (state.lastCompletedAt) {
+            const lastDoneDay = getDateKeyInTimezone(state.lastCompletedAt, tz);
+            const today = getDateKeyInTimezone(now, tz);
+            if (lastDoneDay === today) return { status: "LOCKED" };
+          }
+        } else {
+          if ((state.usesToday ?? 0) >= definition.maxPerDay) return { status: "LOCKED" };
         }
       }
 

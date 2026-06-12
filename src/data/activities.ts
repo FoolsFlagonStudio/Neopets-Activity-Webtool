@@ -348,10 +348,16 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "wise_old_king",
     name: "Wise Old King",
     category: "dailies",
-    timingType: "DAILY_RESET",
-    resetTimezone: "America/Los_Angeles",
-    resetHour: 0,
-    notes: "Available once per day except from 8-9am, 1-2pm, 7-8pm npt / pst",
+    timingType: "WINDOWED",
+    allowedWindows: [
+      { start: "00:00", end: "08:00" },
+      { start: "09:00", end: "13:00" },
+      { start: "14:00", end: "19:00" },
+      { start: "20:00", end: "24:00" },
+    ],
+    windowTimezone: "America/Los_Angeles",
+    maxPerDay: 1,
+    notes: "Once per day. Closed 8–9am, 1–2pm, 7–8pm NST (castle hours).",
     links: [
       {
         label: "Wise Old King",
@@ -364,12 +370,16 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "grumpy_old_king",
     name: "Grumpy Old King",
     category: "dailies",
-    timingType: "DAILY_LIMIT",
+    timingType: "WINDOWED",
+    allowedWindows: [
+      { start: "00:00", end: "08:00" },
+      { start: "09:00", end: "13:00" },
+      { start: "14:00", end: "19:00" },
+      { start: "20:00", end: "24:00" },
+    ],
+    windowTimezone: "America/Los_Angeles",
     maxPerDay: 2,
-    resetTimezone: "America/Los_Angeles",
-    resetHour: 0,
-    notes:
-      "Up to 2 jokes per day. Unavailable from 8-9am, 1-2pm, 7-8pm npt / pst.",
+    notes: "Up to 2 jokes per day. Closed 8–9am, 1–2pm, 7–8pm NST (castle hours).",
     links: [
       {
         label: "Grumpy Old King",

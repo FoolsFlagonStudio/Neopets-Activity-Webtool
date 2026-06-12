@@ -274,6 +274,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         };
       }
 
+      // WINDOWED with maxPerDay > 1 tracks usesToday (same as DAILY_LIMIT)
+      if (
+        definition.timingType === "WINDOWED" &&
+        definition.maxPerDay != null &&
+        definition.maxPerDay > 1
+      ) {
+        return incrementUse(existing, definition.maxPerDay);
+      }
+
       return markCompleted(existing);
     }).then(() => sendResponse({ success: true }));
 

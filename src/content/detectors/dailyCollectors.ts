@@ -223,9 +223,48 @@ function parseRemainingTime(text: string): number {
   return ms;
 }
 
-export function detectDailyCollect(): void {
-  const text = pageText();
+const HAUNTED_WOODS_HUNT_PHRASES = [
+  "you find",
+  "as you search the clearing",
+  "you go to pick something unusual up",
+  "something scurries underneath",
+  "you try to make your way deeper into the woods",
+  "something on the ground catches your eye",
+  "something smells",
+];
 
+function detectHWH(): void {
+  const text = getPageText().toLowerCase();
+  const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
+
+  if (text.includes("come back tomorrow")) {
+    const doneKey = `nat_hwh_done_${today}`;
+    if (!localStorage.getItem(doneKey)) {
+      localStorage.setItem(doneKey, "1");
+      chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+    }
+  } else {
+    const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) => text.includes(phrase));
+    if (triggered) {
+      const clicksKey = `nat_hwh_clicks_${today}`;
+      const fingerprintKey = `nat_hwh_fp_${today}`;
+      const fingerprint = text.slice(100, 600);
+      const lastFp = localStorage.getItem(fingerprintKey);
+
+      if (fingerprint !== lastFp) {
+        localStorage.setItem(fingerprintKey, fingerprint);
+        const clicks = (parseInt(localStorage.getItem(clicksKey) ?? "0", 10) || 0) + 1;
+        localStorage.setItem(clicksKey, String(clicks));
+        console.log(`[NAT] HWH click ${clicks}/10`);
+        if (clicks === 5 || clicks === 10) {
+          chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+        }
+      }
+    }
+  }
+}
+
+export function detectDailyCollect(): void {
   // -------- FREE JELLY --------
   detectStandardDaily(
     "free_jelly",
@@ -341,8 +380,8 @@ export function detectDailyCollect(): void {
 
   // ---------------- Anchor Management ----------------
   if (location.pathname.includes("/pirates/anchormanagement.phtml")) {
-    if (!alreadyReported("anchor_management")) {
-      const container = document.body;
+    if (!alreadyReported("anchor_management") && !sessionStorage.getItem("nat_anchor_obs")) {
+      sessionStorage.setItem("nat_anchor_obs", "1");
 
       const observer = new MutationObserver(() => {
         const t = pageText();
@@ -352,11 +391,11 @@ export function detectDailyCollect(): void {
             (t.includes("left you") ||
               t.includes("memento") ||
               t.includes("retreats") ||
-              t.includes("sneaky"))) ||
+              t.includes("sneaky") ||
+              t.includes("leaves behind"))) ||
+          t.includes("a magnificent shot") ||
           t.includes("never been safer") ||
-          t.includes(
-            "At long last, Krawk Island has been restored and is now better than ever!",
-          );
+          t.includes("at long last, krawk island has been restored");
 
         if (hasResult) {
           console.log("[NAT] Anchor Management completed");
@@ -367,7 +406,7 @@ export function detectDailyCollect(): void {
         }
       });
 
-      observer.observe(container, {
+      observer.observe(document.body, {
         childList: true,
         subtree: true,
         characterData: true,
@@ -608,10 +647,16 @@ export function detectDailyCollect(): void {
         text.includes("haven't you been feeding") ||
         text.includes("discarded plushie") ||
         text.includes("there is no response from the plushie") ||
-        text.includes("The plushie remains") ||
+        text.includes("the plushie remains") ||
         text.includes("neopoints") ||
         text.includes("is so excited") ||
-        text.includes("You have already visited the plushie today");
+        text.includes("you have already visited the plushie today") ||
+        text.includes("stares at you blankly") ||
+        text.includes("you feel a strange warmth") ||
+        text.includes("glassy eyes") ||
+        text.includes("faerie doll") ||
+        text.includes("has been added to your inventory") ||
+        text.includes("something has happened");
 
       if (completed) {
         chrome.runtime.sendMessage({
@@ -737,54 +782,22 @@ export function detectDailyCollect(): void {
     }
   }
 
-  const HAUNTED_WOODS_HUNT_PHRASES = [
-    "you find",
-    "as you search the clearing",
-    "you go to pick something unusual up",
-    "something scurries underneath",
-    "you try to make your way deeper into the woods",
-    "something on the ground catches your eye",
-    "something smells",
-  ];
-
   // ---------------- Haunted Woods Hunt ----------------
   // Tracks 5 item-clicks per session; 5 clicks = 1 use (max 2/day).
   // Uses localStorage so counts survive page reloads between clicks.
+  // "Come back tomorrow" can appear via display:none reveal — use attribute observer.
   if (location.pathname.includes("/halloween/haunted_woods_hunt.phtml")) {
-    const text = getPageText().toLowerCase();
-    const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
+    detectHWH();
 
-    // "Come back tomorrow" means both sessions are exhausted — mark fully done.
-    if (text.includes("come back tomorrow")) {
-      const doneKey = `nat_hwh_done_${today}`;
-      if (!localStorage.getItem(doneKey)) {
-        localStorage.setItem(doneKey, "1");
-        chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
-        chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
-      }
-    } else {
-      const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) => text.includes(phrase));
-      if (triggered) {
-        const clicksKey = `nat_hwh_clicks_${today}`;
-        const fingerprintKey = `nat_hwh_fp_${today}`;
-        const fingerprint = text.slice(100, 600);
-        const lastFp = localStorage.getItem(fingerprintKey);
-
-        // Dedup: same page result appearing twice (e.g. MutationObserver re-fire)
-        if (fingerprint !== lastFp) {
-          localStorage.setItem(fingerprintKey, fingerprint);
-
-          const clicks = (parseInt(localStorage.getItem(clicksKey) ?? "0", 10) || 0) + 1;
-          localStorage.setItem(clicksKey, String(clicks));
-
-          console.log(`[NAT] HWH click ${clicks}/10`);
-
-          // Every 5 clicks = 1 completed session
-          if (clicks === 5 || clicks === 10) {
-            chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
-          }
-        }
-      }
+    if (!sessionStorage.getItem("nat_hwh_obs")) {
+      sessionStorage.setItem("nat_hwh_obs", "1");
+      new MutationObserver(detectHWH).observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["style", "class"],
+      });
     }
   }
 

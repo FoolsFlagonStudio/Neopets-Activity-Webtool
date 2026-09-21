@@ -30,6 +30,7 @@ const ctx = await esbuild.context({
     info: "./src/popup/info.ts",
     restock: "./src/popup/restock.ts",
     training: "./src/popup/training.ts",
+    shops: "./src/popup/shops.ts",
   },
 
   outdir: "dist",

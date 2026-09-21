@@ -6,7 +6,7 @@ import {
   incrementUse,
 } from "./stateUpdates.js";
 import { computeAvailability } from "./availabilityEngine.js";
-import { startScheduler } from "./scheduler";
+import { startScheduler, checkTrainingAndNotify } from "./scheduler";
 import { SHOPS, getShopById } from "../data/shops";
 import type { ItemPriceEntry, RestockPriceStore, FetchStatus } from "../types/restock";
 import { RESTOCK_STORAGE_KEY, FETCH_STATUS_KEY } from "../types/restock";
@@ -83,13 +83,73 @@ chrome.webRequest.onCompleted.addListener(
 
 // ---------------- Restock Price Fetcher ----------------
 
+// Alarm name for the per-shop safety timeout. Using chrome.alarms instead of
+// setTimeout so the timer survives MV3 service worker idle restarts.
+const FETCH_TIMEOUT_ALARM = "nat-fetch-shop-timeout";
+// Storage key for persisting queue state across service worker restarts.
+const FETCH_STATE_KEY = "nat_fetch_state";
+
+interface PersistedFetchState {
+  queue: string[];
+  index: number;
+  tabId: number | null;
+  preBatchTabId: number | null;
+  preBatchWindowId: number | null;
+}
+
 let fetchQueue: string[] = [];
 let fetchIndex = 0;
 let activeFetchTabId: number | null = null;
-let fetchTimeoutId: ReturnType<typeof setTimeout> | null = null;
 // The tab the user was on before the batch started — restored when done.
 let preBatchTabId: number | null = null;
 let preBatchWindowId: number | null = null;
+
+async function persistFetchState(): Promise<void> {
+  const state: PersistedFetchState = {
+    queue: fetchQueue,
+    index: fetchIndex,
+    tabId: activeFetchTabId,
+    preBatchTabId,
+    preBatchWindowId,
+  };
+  return new Promise((resolve) => chrome.storage.local.set({ [FETCH_STATE_KEY]: state }, resolve));
+}
+
+async function clearPersistedFetchState(): Promise<void> {
+  return new Promise((resolve) => chrome.storage.local.remove([FETCH_STATE_KEY], resolve));
+}
+
+async function restoreFetchState(): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([FETCH_STATE_KEY], (result) => {
+      const state = result[FETCH_STATE_KEY] as PersistedFetchState | undefined;
+      if (!state || state.queue.length === 0) { resolve(false); return; }
+      fetchQueue = state.queue;
+      fetchIndex = state.index;
+      activeFetchTabId = state.tabId;
+      preBatchTabId = state.preBatchTabId;
+      preBatchWindowId = state.preBatchWindowId;
+      resolve(true);
+    });
+  });
+}
+
+// Per-shop timeout alarm. Fires even if the service worker was killed and
+// restarted between when the tab was opened and when the alarm fires.
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== FETCH_TIMEOUT_ALARM) return;
+  // In-memory variables are reset on service worker restart — recover from storage.
+  if (fetchQueue.length === 0) {
+    const restored = await restoreFetchState();
+    if (!restored) return;
+  }
+  const shop = getShopById(fetchQueue[fetchIndex]);
+  console.warn(`[NAT] Restock fetch timeout for ${shop?.name ?? fetchQueue[fetchIndex]}, skipping`);
+  await closeFetchTab();
+  fetchIndex++;
+  await persistFetchState();
+  openNextShopTab();
+});
 
 async function saveFetchStatus(status: FetchStatus): Promise<void> {
   return new Promise((resolve) => {
@@ -112,10 +172,8 @@ async function savePriceStore(store: RestockPriceStore): Promise<void> {
 }
 
 async function closeFetchTab(): Promise<void> {
-  if (fetchTimeoutId !== null) {
-    clearTimeout(fetchTimeoutId);
-    fetchTimeoutId = null;
-  }
+  // Cancel the per-shop timeout alarm (no-op if it doesn't exist).
+  chrome.alarms.clear(FETCH_TIMEOUT_ALARM);
   if (activeFetchTabId !== null) {
     try {
       await chrome.tabs.remove(activeFetchTabId);
@@ -143,6 +201,7 @@ async function restorePreBatchTab(): Promise<void> {
 async function openNextShopTab(): Promise<void> {
   if (fetchIndex >= fetchQueue.length) {
     await saveFetchStatus({ active: false, current: null, done: fetchQueue.length, total: fetchQueue.length });
+    await clearPersistedFetchState();
     fetchQueue = [];
     fetchIndex = 0;
     await restorePreBatchTab();
@@ -182,16 +241,22 @@ async function openNextShopTab(): Promise<void> {
 
   activeFetchTabId = tab.id ?? null;
 
-  // Safety timeout — 60s per shop (initial load + scroll settle)
-  fetchTimeoutId = setTimeout(async () => {
-    console.warn(`[NAT] Restock fetch timeout for ${shop.name}`);
-    await closeFetchTab();
-    fetchIndex++;
-    openNextShopTab();
-  }, 60_000);
+  // Persist now so the alarm handler has up-to-date state even if the
+  // service worker is killed between here and when the alarm fires.
+  await persistFetchState();
+
+  // 2-minute safety net: large shops (1000+ items) need up to 90s to scroll;
+  // the extractor always sends RESTOCK_PRICES_DATA before this fires for them.
+  chrome.alarms.create(FETCH_TIMEOUT_ALARM, { delayInMinutes: 2 });
 }
 
 async function handleRestockData(shopId: string, items: ItemPriceEntry[]): Promise<void> {
+  // The service worker may have been killed and restarted since the tab was
+  // opened, wiping the in-memory queue. Recover from storage before advancing.
+  if (fetchQueue.length === 0) {
+    await restoreFetchState();
+  }
+
   await closeFetchTab();
 
   const store = await loadPriceStore();
@@ -211,6 +276,7 @@ async function handleRestockData(shopId: string, items: ItemPriceEntry[]): Promi
   await savePriceStore(store);
 
   fetchIndex++;
+  await persistFetchState();
   openNextShopTab();
 }
 
@@ -343,10 +409,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const validIds = shopIds.filter((id) => SHOPS.some((s) => s.id === id));
     if (validIds.length === 0) return true;
 
-    // Reset state and start sequential fetch
+    // Tear down any previous in-flight batch before starting the new one.
+    chrome.alarms.clear(FETCH_TIMEOUT_ALARM);
+    if (activeFetchTabId !== null) {
+      chrome.tabs.remove(activeFetchTabId).catch(() => {});
+      activeFetchTabId = null;
+    }
+
     fetchQueue = validIds;
     fetchIndex = 0;
-    activeFetchTabId = null;
+    preBatchTabId = null;
+    preBatchWindowId = null;
 
     openNextShopTab();
     sendResponse({ started: true });
@@ -357,6 +430,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "RESTOCK_PRICES_DATA") {
     const { shopId, items } = message as { shopId: string; items: ItemPriceEntry[] };
     handleRestockData(shopId, items);
+    return true;
+  }
+
+  // -------- TRAINING: IMMEDIATE COMPLETION CHECK --------
+  // Content script calls this after saving fresh training data so notifications
+  // fire as soon as the user visits the training page rather than waiting for
+  // the next scheduler tick (up to 1 minute later).
+  if (message?.type === "SYNC_TRAINING") {
+    checkTrainingAndNotify().then(() => sendResponse({ ok: true }));
     return true;
   }
 

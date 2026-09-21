@@ -3,11 +3,15 @@ import { detectDailyCollect } from "./detectors/dailyCollectors";
 import { applyShopOverlay, reapplyShopOverlay } from "./detectors/shopOverlay";
 import { applyShopPricingOverlay } from "./detectors/shopPricingOverlay";
 import { detectTraining } from "./detectors/trainingDetector";
+import { applyPyramidsHelper } from "./detectors/pyramidsHelper";
+import { applySolitaireHelper } from "./detectors/solitaireHelper";
 
 // Initial overlay passes — each exits immediately if not on the right page.
 applyShopOverlay();
 applyShopPricingOverlay();
 detectTraining();
+applyPyramidsHelper();
+applySolitaireHelper();
 
 function runDetectors(): void {
   detectWheels();

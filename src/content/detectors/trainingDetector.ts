@@ -12,7 +12,7 @@ function parseTimeMs(text: string): number {
   return ms;
 }
 
-// Both training schools share the same DOM structure:
+// Both training schools share this DOM structure on their status pages:
 // td[bgcolor="#efefef"][colspan="2"] > b > "PetName (Level N) is currently studying Stat"
 // next sibling tr > td:nth-child(2) > b > "X hrs, Y minutes, Z seconds"
 function parsePetRows(): PetTraining[] {
@@ -62,27 +62,32 @@ function getSource(): TrainingSource | null {
 export function detectTraining(): void {
   const source = getSource();
   if (!source) return;
-  if (new URLSearchParams(location.search).get("type") !== "status") return;
 
   const pets = parsePetRows();
   if (pets.length === 0) return;
 
   chrome.storage.local.get([TRAINING_STORAGE_KEY], (result) => {
+    const now = Date.now();
     const store: TrainingStore = (result[TRAINING_STORAGE_KEY] as TrainingStore) ?? {
       swashbuckling: [],
       island_school: [],
     };
 
-    // Preserve notifiedAt if it's the same training session (finishesAt unchanged)
     const prev = new Map(store[source].map((p) => [p.petName, p]));
     store[source] = pets.map((p) => {
       const old = prev.get(p.petName);
-      if (old?.notifiedAt && old.finishesAt === p.finishesAt) {
-        return { ...p, notifiedAt: old.notifiedAt };
-      }
-      return p;
+      if (!old?.notifiedAt) return p;
+      // Keep notifiedAt unless a genuinely new training session has started.
+      // When training is complete the page reports 0s remaining, giving
+      // finishesAt ≈ now — that must not clear the flag and re-fire the notification.
+      const isNewSession = p.finishesAt !== null && p.finishesAt > now + 60_000;
+      return isNewSession ? p : { ...p, notifiedAt: old.notifiedAt };
     });
 
-    chrome.storage.local.set({ [TRAINING_STORAGE_KEY]: store });
+    chrome.storage.local.set({ [TRAINING_STORAGE_KEY]: store }, () => {
+      // Immediately run the completion check in the background rather than
+      // waiting up to a minute for the next scheduler tick.
+      chrome.runtime.sendMessage({ type: "SYNC_TRAINING" }).catch(() => {});
+    });
   });
 }

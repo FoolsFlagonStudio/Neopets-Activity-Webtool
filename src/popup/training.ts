@@ -90,7 +90,7 @@ function renderSyncBar(container: HTMLElement, lastUpdated: number | undefined):
     },
     {
       label: "Sync Island School",
-      url: "https://www.neopets.com/island/training.phtml",
+      url: "https://www.neopets.com/island/training.phtml?type=status",
     },
   ];
 
@@ -116,25 +116,50 @@ export function initTrainingPage(): void {
   const root = document.getElementById("training-list");
   if (!root) return;
 
-  chrome.storage.local.get([TRAINING_STORAGE_KEY], (result) => {
-    const store = result[TRAINING_STORAGE_KEY] as TrainingStore | undefined;
+  let tickInterval: ReturnType<typeof setInterval> | null = null;
+
+  function render(store: TrainingStore | undefined): void {
+    if (tickInterval !== null) {
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+
+    root!.innerHTML = "";
 
     const swash = store?.swashbuckling ?? [];
     const island = store?.island_school ?? [];
 
-    // Combine, annotate with source label
-    const all = [
-      ...swash.map((p) => ({ pet: p, label: "Academy" })),
-      ...island.map((p) => ({ pet: p, label: "Island" })),
-    ];
+    // Merge by pet name — a pet can only train at one school at a time.
+    // If the same pet appears in both lists, keep whichever has active training;
+    // if both are idle or both are active, prefer the more recently synced entry.
+    const petMap = new Map<string, { pet: PetTraining; label: string }>();
+    for (const pet of swash) {
+      petMap.set(pet.petName.toLowerCase(), { pet, label: "Academy" });
+    }
+    for (const pet of island) {
+      const key = pet.petName.toLowerCase();
+      const existing = petMap.get(key);
+      if (!existing) {
+        petMap.set(key, { pet, label: "Island" });
+      } else {
+        const existingActive = existing.pet.stat !== null;
+        const newActive = pet.stat !== null;
+        if (
+          (newActive && !existingActive) ||
+          (newActive === existingActive && pet.updatedAt > existing.pet.updatedAt)
+        ) {
+          petMap.set(key, { pet, label: "Island" });
+        }
+      }
+    }
+    const all = Array.from(petMap.values());
 
-    // Find the most recent updatedAt across all pets
     const lastUpdated = all.reduce<number | undefined>(
       (acc, { pet }) => (acc === undefined || pet.updatedAt > acc ? pet.updatedAt : acc),
       undefined
     );
 
-    renderSyncBar(root, lastUpdated);
+    renderSyncBar(root!, lastUpdated);
 
     const list = document.createElement("div");
     list.id = "tr-pet-list";
@@ -151,8 +176,18 @@ export function initTrainingPage(): void {
       }
     }
 
-    root.appendChild(list);
+    root!.appendChild(list);
+    tickInterval = setInterval(() => tickTimers(list), 1_000);
+  }
 
-    setInterval(() => tickTimers(list), 1_000);
+  chrome.storage.local.get([TRAINING_STORAGE_KEY], (result) => {
+    render(result[TRAINING_STORAGE_KEY] as TrainingStore | undefined);
+  });
+
+  // Re-render automatically when detectTraining() updates storage in any tab —
+  // without this the popup would show stale data until manually closed and reopened.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !(TRAINING_STORAGE_KEY in changes)) return;
+    render(changes[TRAINING_STORAGE_KEY].newValue as TrainingStore | undefined);
   });
 }

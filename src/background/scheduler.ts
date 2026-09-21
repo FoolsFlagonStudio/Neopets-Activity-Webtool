@@ -72,7 +72,7 @@ async function checkAvailabilityAndNotify(): Promise<void> {
   await saveActivityState(stateMap);
 }
 
-async function checkTrainingAndNotify(): Promise<void> {
+export async function checkTrainingAndNotify(): Promise<void> {
   const result = await new Promise<{ [k: string]: unknown }>((resolve) =>
     chrome.storage.local.get([TRAINING_STORAGE_KEY], resolve)
   );

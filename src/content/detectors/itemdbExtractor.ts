@@ -8,7 +8,7 @@ const POLL_INTERVAL_MS = 300;
 const SCROLL_SETTLE_MS = 2_000;
 // Consider loading done when item count is unchanged this many times in a row.
 const STABLE_ROUNDS_REQUIRED = 4;
-const SCROLL_TIMEOUT_MS = 60_000;
+const SCROLL_TIMEOUT_MS = 90_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -12,6 +12,23 @@ function parseTimeMs(text: string): number {
   return ms;
 }
 
+function isStruckThrough(el: Element): boolean {
+  return !!el.closest(".strikethrough, s, strike, del");
+}
+
+// With a time reduction active (e.g. a fortune cookie), the cell shows the
+// original time struck through, then the reduced time:
+//   <span class="strikethrough"><b>3hrs,59minutes,59seconds</b></span>
+//   <br><br><b>2 hrs, 12 minutes, 0 seconds</b>
+// Use the last bold time that isn't struck through.
+function getRemainingTimeText(cell: Element | null): string {
+  if (!cell) return "";
+  const times = [...cell.querySelectorAll("b")].filter(
+    (b) => !isStruckThrough(b) && /\d+\s*(hr|minute|second)/.test(b.textContent ?? "")
+  );
+  return times[times.length - 1]?.textContent ?? "";
+}
+
 // Both training schools share this DOM structure on their status pages:
 // td[bgcolor="#efefef"][colspan="2"] > b > "PetName (Level N) is currently studying Stat"
 // next sibling tr > td:nth-child(2) > b > "X hrs, Y minutes, Z seconds"
@@ -39,8 +56,8 @@ function parsePetRows(): PetTraining[] {
       const stat = studyingMatch[2];
       const headerRow = cell.closest("tr");
       const detailsRow = headerRow?.nextElementSibling as HTMLTableRowElement | null;
-      const timeBold = detailsRow?.querySelectorAll("td")[1]?.querySelector("b");
-      const timeMs = parseTimeMs(timeBold?.textContent ?? "");
+      const timeCell = detailsRow?.querySelectorAll("td")[1] ?? null;
+      const timeMs = parseTimeMs(getRemainingTimeText(timeCell));
       pets.push({ petName, stat, finishesAt: now + timeMs, updatedAt: now });
     } else if (idleMatch) {
       pets.push({ petName: idleMatch[1], stat: null, finishesAt: null, updatedAt: now });

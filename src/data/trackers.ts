@@ -1,6 +1,7 @@
-import type { RewardTier, TrackerDefinition } from "../types/tracker";
+import type { RewardTier, TrackerCategory, TrackerDefinition } from "../types/tracker";
 
 export const NEOCOLA_ID = "neocola_machine";
+export const VENDING_ID = "alien_aisha_vending";
 
 /* ─────────────────────────────────────────────── */
 /*                NeoCola reference data            */
@@ -85,6 +86,35 @@ export function classifyNeocolaPrize(
 }
 
 /* ─────────────────────────────────────────────── */
+/*          Alien Aisha Vending reference data      */
+/* ─────────────────────────────────────────────── */
+
+/** Form field names on /vending2.phtml. Choices don't affect the outcome. */
+export const VENDING_FIELDS = {
+  nerkmid: "nerkmid_id",
+  largeButton: "large_button",
+  smallButton: "small_button",
+  presses: "button_presses",
+  levers: "lever_pulls",
+} as const;
+
+export const VENDING_CATEGORIES: TrackerCategory[] = [
+  { id: "gross_food", label: "Gross Food", tier: "common", expectedPct: 70 },
+  { id: "nerkmid", label: "Nerkmid", tier: "rare", expectedPct: 15 },
+  { id: "faerie", label: "Fading Bottled Faerie", tier: "rare", expectedPct: 10 },
+  { id: "paint_brush", label: "Paint Brush", tier: "jackpot", expectedPct: 5 },
+];
+
+export function classifyVendingPrize(item: string | null): TrackerCategory {
+  const byId = (id: string) => VENDING_CATEGORIES.find((c) => c.id === id)!;
+  if (!item) return byId("gross_food");
+  if (/paint ?brush/i.test(item)) return byId("paint_brush");
+  if (/bottled\b.*\bfaerie/i.test(item)) return byId("faerie");
+  if (/nerkmid/i.test(item)) return byId("nerkmid");
+  return byId("gross_food");
+}
+
+/* ─────────────────────────────────────────────── */
 /*                 Tracker registry                 */
 /* ─────────────────────────────────────────────── */
 
@@ -97,6 +127,7 @@ export const TRACKERS: TrackerDefinition[] = [
     url: "https://www.neopets.com/moon/neocola.phtml",
     playUnit: { singular: "token", plural: "tokens" },
     jackpotLabel: "Transmogs",
+    jackpotSingular: "transmog",
     costLabel: "Token price (NP)",
     choiceFields: [
       { key: "token", label: "Token" },
@@ -113,6 +144,26 @@ export const TRACKERS: TrackerDefinition[] = [
         flavor: NEOCOLA_FLAVORS.map((f) => ({ value: f, label: f })),
         presses: NEOCOLA_PRESSES.map((p) => ({ value: p, label: p })),
       },
+    },
+  },
+  {
+    id: VENDING_ID,
+    name: "Alien Aisha Vending",
+    description:
+      "Nerkmids in, gross food out... and every so often a paint brush.",
+    url: "https://www.neopets.com/vending.phtml",
+    playUnit: { singular: "nerkmid", plural: "nerkmids" },
+    jackpotLabel: "Paint Brushes",
+    jackpotSingular: "brush",
+    costLabel: "Avg Nerkmid price (NP)",
+    tierLabels: { rare: "Nerkmids + Faeries", common: "Gross Food" },
+    choiceFields: [{ key: "nerkmid", label: "Nerkmid" }],
+    categories: VENDING_CATEGORIES,
+    // Buttons/levers don't change anything, so prefill is just on/off
+    // and always picks the first option in each select.
+    prefill: {
+      defaults: { enabled: true, choices: {} },
+      options: {},
     },
   },
 ];

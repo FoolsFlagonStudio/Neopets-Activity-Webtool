@@ -139,10 +139,10 @@ function renderSummary(def: TrackerDefinition, s: TrackerStats): HTMLElement {
       "div",
       { class: "row g-2" },
       tile(def.jackpotLabel, fmt(s.jackpots), s.jackpots ? "tone-gold" : ""),
-      tile("Good prizes", fmt(s.rares), s.rares ? "tone-green" : ""),
-      tile("Booby prizes", fmt(s.common)),
+      tile(def.tierLabels?.rare ?? "Good prizes", fmt(s.rares), s.rares ? "tone-green" : ""),
+      tile(def.tierLabels?.common ?? "Booby prizes", fmt(s.common)),
       tile(
-        `Since last ${def.jackpotLabel.replace(/s$/, "").toLowerCase()}`,
+        `Since last ${(def.jackpotSingular ?? def.jackpotLabel.replace(/s$/, "")).toLowerCase()}`,
         fmt(s.playsSinceJackpot)
       )
     )
@@ -250,12 +250,16 @@ function renderPrefill(def: TrackerDefinition, log: TrackerLog): HTMLElement | n
     h(
       "p",
       { class: "small text-muted mb-0 mt-1" },
-      "Only fills fields still on \"Select one...\" - you always hit submit yourself."
+      selects.length
+        ? "Only fills fields still on \"Select one...\" - you always hit submit yourself."
+        : "Picks the first option in each dropdown (they don't change your prize) - you still hit submit yourself."
     )
   );
 }
 
-function renderTierBar(s: TrackerStats): HTMLElement {
+function renderTierBar(def: TrackerDefinition, s: TrackerStats): HTMLElement {
+  const commonLabel = def.tierLabels?.common ?? "Booby";
+  const rareLabel = def.tierLabels?.rare ?? "Good";
   const seg = (n: number, cls: string, title: string) =>
     n
       ? h("div", {
@@ -271,16 +275,16 @@ function renderTierBar(s: TrackerStats): HTMLElement {
     h(
       "div",
       { class: "tier-bar" },
-      seg(s.common, "tier-common", "Booby"),
-      seg(s.rares, "tier-rare", "Good"),
-      seg(s.jackpots, "tier-jackpot", "Jackpot")
+      seg(s.common, "tier-common", commonLabel),
+      seg(s.rares, "tier-rare", rareLabel),
+      seg(s.jackpots, "tier-jackpot", def.jackpotLabel)
     ),
     h(
       "div",
       { class: "tier-legend small text-muted" },
-      h("span", {}, h("i", { class: "dot tier-common" }), ` Booby ${pct(s.common, s.plays)}`),
-      h("span", {}, h("i", { class: "dot tier-rare" }), ` Good ${pct(s.rares, s.plays)}`),
-      h("span", {}, h("i", { class: "dot tier-jackpot" }), ` Jackpot ${pct(s.jackpots, s.plays)}`)
+      h("span", {}, h("i", { class: "dot tier-common" }), ` ${commonLabel} ${pct(s.common, s.plays)}`),
+      h("span", {}, h("i", { class: "dot tier-rare" }), ` ${rareLabel} ${pct(s.rares, s.plays)}`),
+      h("span", {}, h("i", { class: "dot tier-jackpot" }), ` ${def.jackpotLabel} ${pct(s.jackpots, s.plays)}`)
     )
   );
 }
@@ -303,6 +307,59 @@ function renderItems(s: TrackerStats): HTMLElement {
     );
   }
   return list;
+}
+
+function renderOdds(def: TrackerDefinition, s: TrackerStats): HTMLElement | null {
+  if (!def.categories?.length) return null;
+
+  const rows = def.categories.map((c) => {
+    const count = s.byCategory[c.id] ?? 0;
+    const actual = s.plays ? (count / s.plays) * 100 : 0;
+    const diff = c.expectedPct !== undefined ? actual - c.expectedPct : null;
+    const diffCls =
+      diff === null || Math.abs(diff) < 0.5
+        ? "text-muted"
+        : (diff > 0) === (c.tier !== "common")
+          ? "text-success"
+          : "text-danger";
+    return h(
+      "tr",
+      { class: `tier-text-${c.tier}` },
+      h("td", {}, h("span", { class: "item-name" }, c.label)),
+      h("td", { class: "text-end" }, fmt(count)),
+      h("td", { class: "text-end" }, pct(count, s.plays)),
+      h("td", { class: "text-end text-muted" }, c.expectedPct !== undefined ? `${c.expectedPct}%` : "-"),
+      h(
+        "td",
+        { class: `text-end ${diffCls}` },
+        diff === null ? "-" : `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}`
+      )
+    );
+  });
+
+  return h(
+    "div",
+    {},
+    sectionHeader("Your luck vs published odds"),
+    h(
+      "table",
+      { class: "table table-sm small mb-0 breakdown-table" },
+      h(
+        "thead",
+        {},
+        h(
+          "tr",
+          {},
+          h("th", {}, "Prize"),
+          h("th", { class: "text-end" }, "Count"),
+          h("th", { class: "text-end" }, "You"),
+          h("th", { class: "text-end" }, "Odds"),
+          h("th", { class: "text-end" }, "Diff")
+        )
+      ),
+      h("tbody", {}, ...rows)
+    )
+  );
 }
 
 function renderJackpots(def: TrackerDefinition, s: TrackerStats): HTMLElement | null {
@@ -502,9 +559,12 @@ function render(store: TrackerStore): void {
     renderSummary(def, s),
     renderProfit(def, log, s),
     sectionHeader("Prizes"),
-    renderTierBar(s),
+    renderTierBar(def, s),
     renderItems(s)
   );
+
+  const odds = renderOdds(def, s);
+  if (odds) body.append(odds);
 
   const jackpots = renderJackpots(def, s);
   if (jackpots) body.append(jackpots);

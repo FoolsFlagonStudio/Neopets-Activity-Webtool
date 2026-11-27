@@ -67,6 +67,7 @@ export function recordTrackerEntry(
       np: sanitizeNp(payload.np),
       item: payload.item ? String(payload.item).slice(0, 120) : null,
       tier: payload.tier,
+      ...(payload.category ? { category: String(payload.category).slice(0, 40) } : {}),
       choices: payload.choices ?? {},
       source: payload.source,
     };

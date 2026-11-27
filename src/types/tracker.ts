@@ -20,6 +20,8 @@ export interface TrackerEntry {
   np: number; // NP received (0 if none)
   item: string | null; // item received, null if nothing
   tier: RewardTier;
+  /** Prize category id (TrackerDefinition.categories), if the tracker has them. */
+  category?: string;
   /**
    * Tracker-specific choices made for this play, keyed by
    * TrackerDefinition.choiceFields[].key (e.g. token, flavor, presses).
@@ -51,6 +53,14 @@ export interface TrackerChoiceField {
   label: string; // column header in UI
 }
 
+export interface TrackerCategory {
+  id: string;
+  label: string;
+  tier: RewardTier;
+  /** Published odds in percent, shown next to the user's actual rate. */
+  expectedPct?: number;
+}
+
 export interface TrackerDefinition {
   id: string;
   name: string;
@@ -60,9 +70,15 @@ export interface TrackerDefinition {
   playUnit: { singular: string; plural: string };
   /** Label for the jackpot tier ("Transmogs", etc.). */
   jackpotLabel: string;
+  /** Singular form for "Since last ___" (defaults to jackpotLabel minus "s"). */
+  jackpotSingular?: string;
   /** Label for the cost setting input. */
   costLabel: string;
   choiceFields: TrackerChoiceField[];
+  /** Optional prize categories (e.g. Gross Food / Nerkmid / Paint Brush). */
+  categories?: TrackerCategory[];
+  /** Tile labels for the rare/common tiers (defaults: Good prizes / Booby prizes). */
+  tierLabels?: { rare: string; common: string };
   /** Present when the tracker supports prefilling its activity form. */
   prefill?: {
     defaults: { enabled: boolean; choices: Record<string, string> };
@@ -76,6 +92,7 @@ export interface TrackerRecordPayload {
   np: number;
   item: string | null;
   tier: RewardTier;
+  category?: string;
   choices: Record<string, string>;
   source: "auto" | "manual";
 }

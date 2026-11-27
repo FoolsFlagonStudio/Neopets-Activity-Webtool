@@ -3,6 +3,7 @@ import { initInfoPage } from "./info";
 import { initRestockPage } from "./restock";
 import { initTrainingPage } from "./training";
 import { initShopsPage } from "./shops";
+import { initTrackersPage } from "./trackers";
 
 const LAST_PAGE_KEY = "nat_last_page";
 const container = document.getElementById("page-container")!;
@@ -12,6 +13,7 @@ async function loadPage(page: string) {
   container.innerHTML = await res.text();
 
   if (page === "activities") initActivitiesPage();
+  if (page === "trackers") initTrackersPage();
   if (page === "info") initInfoPage();
   if (page === "restock") initRestockPage();
   if (page === "training") initTrainingPage();

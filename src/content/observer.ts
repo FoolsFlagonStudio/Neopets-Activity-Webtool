@@ -5,6 +5,7 @@ import { applyShopPricingOverlay } from "./detectors/shopPricingOverlay";
 import { detectTraining } from "./detectors/trainingDetector";
 import { applyPyramidsHelper } from "./detectors/pyramidsHelper";
 import { applySolitaireHelper } from "./detectors/solitaireHelper";
+import { detectNeocola } from "./detectors/neocolaDetector";
 
 // Initial overlay passes — each exits immediately if not on the right page.
 applyShopOverlay();
@@ -18,6 +19,7 @@ function runDetectors(): void {
   detectDailyCollect();
   // Cheap re-apply: exits immediately if all cards are already processed.
   reapplyShopOverlay();
+  detectNeocola();
 }
 
 runDetectors();

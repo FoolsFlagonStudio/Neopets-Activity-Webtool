@@ -62,7 +62,7 @@ export async function applyShopPricingOverlay(): Promise<void> {
   if (new URLSearchParams(location.search).get("type") !== "your") return;
 
   const result = await new Promise<{ [k: string]: unknown }>((resolve) =>
-    chrome.storage.local.get([RESTOCK_STORAGE_KEY], resolve)
+    chrome.storage.local.get([RESTOCK_STORAGE_KEY], (r) => resolve(r))
   );
 
   const store = (result[RESTOCK_STORAGE_KEY] as RestockPriceStore) ?? {};

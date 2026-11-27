@@ -74,7 +74,7 @@ async function checkAvailabilityAndNotify(): Promise<void> {
 
 export async function checkTrainingAndNotify(): Promise<void> {
   const result = await new Promise<{ [k: string]: unknown }>((resolve) =>
-    chrome.storage.local.get([TRAINING_STORAGE_KEY], resolve)
+    chrome.storage.local.get([TRAINING_STORAGE_KEY], (r) => resolve(r))
   );
   const store = result[TRAINING_STORAGE_KEY] as TrainingStore | undefined;
   if (!store) return;

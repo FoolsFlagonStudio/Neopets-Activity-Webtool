@@ -204,3 +204,194 @@ button:disabled {
 .info-page ul {
   padding-left: 1rem;
 }
+
+/* ================================
+   Trackers Page
+================================ */
+
+.tracker-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tracker-chip {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #4b5563;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tracker-chip.active {
+  background: #323741;
+  border-color: #323741;
+  color: #fff;
+}
+
+.tracker-header {
+  margin-bottom: 8px;
+}
+
+.tracker-go {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.stat-tile {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  background: #fafafa;
+  height: 100%;
+}
+
+.stat-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.68rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.stat-tile.tone-gold {
+  background: #fff8e1;
+  border-color: #f5c542;
+}
+
+.stat-tile.tone-green {
+  background: #ecfdf3;
+  border-color: #86d4a6;
+}
+
+.prefill-box,
+.profit-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 8px 0;
+}
+
+.prefill-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+}
+
+.cost-input {
+  width: 90px;
+}
+
+.tier-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f3f4f6;
+  margin: 4px 0;
+}
+
+.tier-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tier-common { background: #9ca3af; }
+.tier-rare { background: #22a06b; }
+.tier-jackpot { background: #e0a400; }
+
+.tier-text-rare .item-name,
+.tier-text-rare .recent-item { color: #15803d; font-weight: 600; }
+.tier-text-jackpot .item-name,
+.tier-text-jackpot .recent-item { color: #b45309; font-weight: 700; }
+
+.item-row,
+.recent-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8rem;
+  padding: 2px 0;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.item-name,
+.recent-item {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-count {
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.recent-np {
+  width: 62px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recent-meta {
+  white-space: nowrap;
+}
+
+.btn-icon {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.btn-icon:hover {
+  color: #dc3545;
+}
+
+.breakdown-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.breakdown-table th,
+.breakdown-table td {
+  padding: 2px 4px;
+}
+
+.jackpot-list li {
+  font-size: 0.85rem;
+}
+
+.tracker-empty {
+  padding: 24px 8px;
+}
+
+.prefill-field:nth-child(2) {
+  flex: 1.5;
+}
+
+.prefill-field .form-select {
+  font-size: 0.78rem;
+  padding-right: 1.6rem;
+}

@@ -8,6 +8,14 @@ import {
 import { computeAvailability } from "./availabilityEngine.js";
 import { startScheduler } from "./scheduler";
 import { getDateKeyInTimezone } from "../utils/npt";
+import {
+  loadTrackerStore,
+  recordTrackerEntry,
+  undoLastTrackerEntry,
+  deleteTrackerEntry,
+  resetTracker,
+  updateTrackerSettings,
+} from "./trackerStore";
 
 // ---------------- Lifecycle ----------------
 
@@ -239,5 +247,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })).then(() => sendResponse({ success: true }));
 
     return true;
+  }
+});
+
+// ---------------- Reward Trackers ----------------
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const type: unknown = message?.type;
+  if (typeof type !== "string" || !type.startsWith("TRACKER_")) return;
+
+  const done = (p: Promise<unknown>) => {
+    p.then(
+      (result) => sendResponse({ success: true, result }),
+      (err) => {
+        console.warn("[NAT] tracker error", err);
+        sendResponse({ success: false });
+      }
+    );
+    return true;
+  };
+
+  switch (type) {
+    case "TRACKER_GET_ALL":
+      return done(loadTrackerStore());
+    case "TRACKER_RECORD":
+      return done(recordTrackerEntry(message.payload));
+    case "TRACKER_UNDO_LAST":
+      return done(undoLastTrackerEntry(message.trackerId));
+    case "TRACKER_DELETE_ENTRY":
+      return done(deleteTrackerEntry(message.trackerId, message.entryId));
+    case "TRACKER_RESET":
+      return done(resetTracker(message.trackerId));
+    case "TRACKER_UPDATE_SETTINGS":
+      return done(updateTrackerSettings(message.trackerId, message.settings));
   }
 });

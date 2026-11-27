@@ -7,6 +7,10 @@ and notifies you when activities are available again.
 - Tracks activity availability (daily resets, cooldown timers)
 - Provides quick links to activities
 - Sends optional notifications
+- Reward trackers (just for fun): logs NeoCola Machine plays automatically -
+  tokens used, NP won, prize/transmog breakdown, and stats per token/flavor/presses
+- Optional NeoCola form prefill (first token, Dehydrated H20, 3 presses by default) -
+  you still press submit yourself
 - Does NOT automate gameplay or perform actions
 
 ## Disclaimer

@@ -1,5 +1,6 @@
 import { initActivitiesPage } from "./activities";
 import { initInfoPage } from "./info";
+import { initTrackersPage } from "./trackers";
 
 const container = document.getElementById("page-container")!;
 
@@ -8,6 +9,7 @@ async function loadPage(page: string) {
   container.innerHTML = await res.text();
 
   if (page === "activities") initActivitiesPage();
+  if (page === "trackers") initTrackersPage();
   if (page === "info") initInfoPage();
 }
 

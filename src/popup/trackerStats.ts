@@ -31,6 +31,7 @@ export interface TrackerStats {
   jackpotEntries: TrackerEntry[];
   items: ItemStat[];
   byChoice: Record<string, GroupStat[]>; // choice key → groups
+  byCategory: Record<string, number>; // category id → count
   firstAt: number | null;
   lastAt: number | null;
 }
@@ -52,6 +53,7 @@ export function computeStats(
   let playsSinceRare = 0;
 
   const itemMap = new Map<string, ItemStat>();
+  const byCategory: Record<string, number> = {};
   const groupMaps: Record<string, Map<string, GroupStat>> = {};
   for (const k of choiceKeys) groupMaps[k] = new Map();
 
@@ -73,6 +75,8 @@ export function computeStats(
       playsSinceJackpot++;
       playsSinceRare++;
     }
+
+    if (e.category) byCategory[e.category] = (byCategory[e.category] ?? 0) + 1;
 
     const itemKey = e.item ?? "(nothing)";
     const it = itemMap.get(itemKey) ?? { item: itemKey, count: 0, tier: e.tier };
@@ -123,6 +127,7 @@ export function computeStats(
     jackpotEntries: entries.filter((e) => e.tier === "jackpot").reverse(),
     items: [...itemMap.values()].sort((a, b) => b.count - a.count),
     byChoice,
+    byCategory,
     firstAt: plays ? entries[0].at : null,
     lastAt: plays ? entries[plays - 1].at : null,
   };

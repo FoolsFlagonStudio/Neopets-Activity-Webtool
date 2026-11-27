@@ -128,7 +128,7 @@ No layer performs responsibilities outside its scope.
 
 **Exception - opt-in form prefill**
 - A content script may preselect values in a form the user is about to submit
-  (e.g. the NeoCola Machine token/flavor/presses), only for fields still on their
+  (e.g. the NeoCola Machine and Alien Aisha Vending Machine forms), only for fields still on their
   empty default, and only when enabled in the popup
 - It never submits, clicks, or changes a value the user already chose
 

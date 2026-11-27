@@ -310,11 +310,16 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "snowager",
     name: "Snowager",
     category: "dailies",
-    timingType: "DAILY_RESET",
-    resetTimezone: "America/Los_Angeles",
-    notes:
-      "Available at 6-7am, 2-3pm, 10-11pm npt / pst (or all day Dec 1–Jan 3)",
-    resetHour: 0,
+    timingType: "WINDOWED",
+    allowedWindows: [
+      { start: "06:00", end: "07:00" },
+      { start: "14:00", end: "15:00" },
+      { start: "22:00", end: "23:00" },
+    ],
+    windowTimezone: "America/Los_Angeles",
+    maxPerDay: 1,
+    seasonalFullDay: { startMonth: 12, startDay: 1, endMonth: 1, endDay: 3 },
+    notes: "Available 6–7am, 2–3pm, 10–11pm NST/PST (all day Dec 1–Jan 3)",
     links: [
       {
         label: "Snowager",
@@ -343,10 +348,16 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "wise_old_king",
     name: "Wise Old King",
     category: "dailies",
-    timingType: "DAILY_RESET",
-    resetTimezone: "America/Los_Angeles",
-    resetHour: 0,
-    notes: "Available once per day except from 8-9am, 1-2pm, 7-8pm npt / pst",
+    timingType: "WINDOWED",
+    allowedWindows: [
+      { start: "00:00", end: "08:00" },
+      { start: "09:00", end: "13:00" },
+      { start: "14:00", end: "19:00" },
+      { start: "20:00", end: "24:00" },
+    ],
+    windowTimezone: "America/Los_Angeles",
+    maxPerDay: 1,
+    notes: "Once per day. Closed 8–9am, 1–2pm, 7–8pm NST (castle hours).",
     links: [
       {
         label: "Wise Old King",
@@ -359,12 +370,16 @@ export const ACTIVITIES: ActivityDefinition[] = [
     id: "grumpy_old_king",
     name: "Grumpy Old King",
     category: "dailies",
-    timingType: "DAILY_LIMIT",
+    timingType: "WINDOWED",
+    allowedWindows: [
+      { start: "00:00", end: "08:00" },
+      { start: "09:00", end: "13:00" },
+      { start: "14:00", end: "19:00" },
+      { start: "20:00", end: "24:00" },
+    ],
+    windowTimezone: "America/Los_Angeles",
     maxPerDay: 2,
-    resetTimezone: "America/Los_Angeles",
-    resetHour: 0,
-    notes:
-      "Up to 2 jokes per day. Unavailable from 8-9am, 1-2pm, 7-8pm npt / pst.",
+    notes: "Up to 2 jokes per day. Closed 8–9am, 1–2pm, 7–8pm NST (castle hours).",
     links: [
       {
         label: "Grumpy Old King",
@@ -563,15 +578,15 @@ export const ACTIVITIES: ActivityDefinition[] = [
     cooldownMinutes: 360,
     notes: "Every 6 hours",
     links: [
-      {
-        label: "Play Test Your Strength",
-        url: "https://www.neopets.com/halloween/strtest/index.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Play Test Your Strength",
+      //   url: "https://www.neopets.com/halloween/strtest/index.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play Test Your Strength",
         url: "https://www.neopets.com/halloween/strtest/process_strtest.phtml",
-        kind: "helper",
+        kind: "action",
         tooltip: "Use if flash is broken",
       },
     ],
@@ -630,15 +645,15 @@ export const ACTIVITIES: ActivityDefinition[] = [
     resetTimezone: "America/Los_Angeles",
     resetHour: 0,
     links: [
-      {
-        label: "Play",
-        url: "https://www.neopets.com/halloween/bagatelle.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Play",
+      //   url: "https://www.neopets.com/halloween/bagatelle.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play",
         url: "https://www.neopets.com/halloween/process_bagatelle.phtml",
-        kind: "helper",
+        kind: "action",
         tooltip: "Use if Flash is broken",
       },
     ],
@@ -654,11 +669,11 @@ export const ACTIVITIES: ActivityDefinition[] = [
     notes:
       "Up to 20 plays per day. Flash may not work; auto-play link supported.",
     links: [
-      {
-        label: "Play Cork Gun",
-        url: "https://www.neopets.com/halloween/corkgun.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Play Cork Gun",
+      //   url: "https://www.neopets.com/halloween/corkgun.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play Cork Gun",
         url: "https://www.neopets.com/halloween/process_corkgun.phtml",
@@ -678,15 +693,15 @@ export const ACTIVITIES: ActivityDefinition[] = [
     notes:
       "Up to 20 plays per day. Flash may not work; auto-play links supported.",
     links: [
-      {
-        label: "Coconut Shy",
-        url: "https://www.neopets.com/halloween/coconutshy.phtml",
-        kind: "action",
-      },
+      // {
+      //   label: "Coconut Shy",
+      //   url: "https://www.neopets.com/halloween/coconutshy.phtml",
+      //   kind: "action",
+      // },
       {
         label: "Auto-Play Coconut Shy",
         url: "https://www.neopets.com/halloween/process_cocoshy.phtml?coconut=1",
-        kind: "helper",
+        kind: "action",
         tooltip: "Replace coconut number to play different coconuts",
       },
     ],

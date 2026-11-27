@@ -70,6 +70,14 @@ export interface WindowedActivity extends BaseActivityDefinition {
   timingType: "WINDOWED";
   allowedWindows: TimeWindow[];
   maxPerDay?: number;
+  windowTimezone?: string;
+  // Date range (each year) during which the activity is available all day.
+  seasonalFullDay?: {
+    startMonth: number; // 1-indexed
+    startDay: number;
+    endMonth: number;
+    endDay: number;
+  };
 }
 
 export interface ConditionalActivity extends BaseActivityDefinition {

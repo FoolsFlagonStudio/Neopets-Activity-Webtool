@@ -1,7 +1,11 @@
 import { initActivitiesPage } from "./activities";
 import { initInfoPage } from "./info";
+import { initRestockPage } from "./restock";
+import { initTrainingPage } from "./training";
+import { initShopsPage } from "./shops";
 import { initTrackersPage } from "./trackers";
 
+const LAST_PAGE_KEY = "nat_last_page";
 const container = document.getElementById("page-container")!;
 
 async function loadPage(page: string) {
@@ -11,6 +15,15 @@ async function loadPage(page: string) {
   if (page === "activities") initActivitiesPage();
   if (page === "trackers") initTrackersPage();
   if (page === "info") initInfoPage();
+  if (page === "restock") initRestockPage();
+  if (page === "training") initTrainingPage();
+  if (page === "shops") initShopsPage();
+}
+
+function activateButton(page: string) {
+  document.querySelectorAll(".popup-nav button").forEach((b) => {
+    b.classList.toggle("active", (b as HTMLButtonElement).dataset.page === page);
+  });
 }
 
 function setupNavigation() {
@@ -18,16 +31,18 @@ function setupNavigation() {
     .querySelectorAll<HTMLButtonElement>(".popup-nav button")
     .forEach((btn) => {
       btn.addEventListener("click", () => {
-        document
-          .querySelectorAll(".popup-nav button")
-          .forEach((b) => b.classList.remove("active"));
-
-        btn.classList.add("active");
-        loadPage(btn.dataset.page!);
+        const page = btn.dataset.page!;
+        activateButton(page);
+        chrome.storage.local.set({ [LAST_PAGE_KEY]: page });
+        loadPage(page);
       });
     });
 }
 
 // init
 setupNavigation();
-loadPage("activities");
+chrome.storage.local.get([LAST_PAGE_KEY], (result) => {
+  const page = (result[LAST_PAGE_KEY] as string | undefined) ?? "activities";
+  activateButton(page);
+  loadPage(page);
+});

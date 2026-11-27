@@ -1,3 +1,5 @@
+import { getDateKeyInTimezone } from "../../utils/npt";
+
 function alreadyReported(key: string): boolean {
   return sessionStorage.getItem(key) === "1";
 }
@@ -195,7 +197,7 @@ function incrementDaily(activityId: string): void {
 function detectStandardDaily(
   activityId: string,
   pathMatch: string,
-  completed: () => boolean
+  completed: () => boolean,
 ): void {
   if (!location.pathname.includes(pathMatch)) return;
   if (alreadyReported(activityId)) return;
@@ -221,9 +223,48 @@ function parseRemainingTime(text: string): number {
   return ms;
 }
 
-export function detectDailyCollect(): void {
-  const text = pageText();
+const HAUNTED_WOODS_HUNT_PHRASES = [
+  "you find",
+  "as you search the clearing",
+  "you go to pick something unusual up",
+  "something scurries underneath",
+  "you try to make your way deeper into the woods",
+  "something on the ground catches your eye",
+  "something smells",
+];
 
+function detectHWH(): void {
+  const text = getPageText().toLowerCase();
+  const today = getDateKeyInTimezone(Date.now(), "America/Los_Angeles");
+
+  if (text.includes("come back tomorrow")) {
+    const doneKey = `nat_hwh_done_${today}`;
+    if (!localStorage.getItem(doneKey)) {
+      localStorage.setItem(doneKey, "1");
+      chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+    }
+  } else {
+    const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) => text.includes(phrase));
+    if (triggered) {
+      const clicksKey = `nat_hwh_clicks_${today}`;
+      const fingerprintKey = `nat_hwh_fp_${today}`;
+      const fingerprint = text.slice(100, 600);
+      const lastFp = localStorage.getItem(fingerprintKey);
+
+      if (fingerprint !== lastFp) {
+        localStorage.setItem(fingerprintKey, fingerprint);
+        const clicks = (parseInt(localStorage.getItem(clicksKey) ?? "0", 10) || 0) + 1;
+        localStorage.setItem(clicksKey, String(clicks));
+        console.log(`[NAT] HWH click ${clicks}/10`);
+        if (clicks === 5 || clicks === 10) {
+          chrome.runtime.sendMessage({ type: "INCREMENT_DAILY_COUNT", activityId: "haunted_woods_hunt" });
+        }
+      }
+    }
+  }
+}
+
+export function detectDailyCollect(): void {
   // -------- FREE JELLY --------
   detectStandardDaily(
     "free_jelly",
@@ -231,7 +272,7 @@ export function detectDailyCollect(): void {
     () =>
       pageText().includes("you take some") ||
       pageText().includes("the jelly keeper") ||
-      pageText().includes("remember... only one helping per day")
+      pageText().includes("remember... only one helping per day"),
   );
 
   // -------- GIANT OMELETTE --------
@@ -240,14 +281,15 @@ export function detectDailyCollect(): void {
     "/prehistoric/omelette.phtml",
     () =>
       pageText().includes("take a slice") ||
-      pageText().includes("manage to take a slice")
+      pageText().includes("manage to take a slice"),
   );
 
   // ---------------- Bank Interest ----------------
   detectStandardDaily(
     "bank_interest",
     "/bank.phtml",
-    () => pageText().includes("collected") && pageText().includes("np interest")
+    () =>
+      pageText().includes("collected") && pageText().includes("np interest"),
   );
 
   // Money Tree + Rubbish Dump
@@ -263,7 +305,7 @@ export function detectDailyCollect(): void {
     "/shop_of_offers.phtml",
     () =>
       pageText().includes("something has happened") &&
-      pageText().includes("very rich slorg")
+      pageText().includes("very rich slorg"),
   );
 
   // ---------------- Trudy’s Surprise ----------------
@@ -314,7 +356,7 @@ export function detectDailyCollect(): void {
 
       // Structural fallback: no pickup button
       const hasPickupAction = document.querySelector(
-        "input[type='submit'], button"
+        "input[type='submit'], button",
       );
 
       if (successText || blockedText || !hasPickupAction) {
@@ -338,18 +380,22 @@ export function detectDailyCollect(): void {
 
   // ---------------- Anchor Management ----------------
   if (location.pathname.includes("/pirates/anchormanagement.phtml")) {
-    if (!alreadyReported("anchor_management")) {
-      const container = document.body;
+    if (!alreadyReported("anchor_management") && !sessionStorage.getItem("nat_anchor_obs")) {
+      sessionStorage.setItem("nat_anchor_obs", "1");
 
       const observer = new MutationObserver(() => {
         const t = pageText();
 
         const hasResult =
-          t.includes("krawken") &&
-          (t.includes("left you") ||
-            t.includes("memento") ||
-            t.includes("retreats") ||
-            t.includes("sneaky"));
+          (t.includes("krawken") &&
+            (t.includes("left you") ||
+              t.includes("memento") ||
+              t.includes("retreats") ||
+              t.includes("sneaky") ||
+              t.includes("leaves behind"))) ||
+          t.includes("a magnificent shot") ||
+          t.includes("never been safer") ||
+          t.includes("at long last, krawk island has been restored");
 
         if (hasResult) {
           console.log("[NAT] Anchor Management completed");
@@ -360,7 +406,7 @@ export function detectDailyCollect(): void {
         }
       });
 
-      observer.observe(container, {
+      observer.observe(document.body, {
         childList: true,
         subtree: true,
         characterData: true,
@@ -399,7 +445,7 @@ export function detectDailyCollect(): void {
 
     if (remainingEl?.textContent) {
       const remainingMs = parseRemainingTime(
-        remainingEl.textContent.toLowerCase()
+        remainingEl.textContent.toLowerCase(),
       );
 
       if (remainingMs > 0) {
@@ -439,12 +485,12 @@ export function detectDailyCollect(): void {
 
   // ---------------- Wheel of Starlight ----------------
   detectStandardDaily("wheel_of_starlight", "/premium/wheel.phtml", () =>
-    pageText().includes("stopped orbiting")
+    pageText().includes("stopped orbiting"),
   );
 
   // ---------------- Tombola ----------------
   detectStandardDaily("tombola", "/island/tombola2", () =>
-    pageText().includes("you put your hand into the tombola")
+    pageText().includes("you put your hand into the tombola"),
   );
 
   // ---------------- Snowager ----------------
@@ -462,12 +508,12 @@ export function detectDailyCollect(): void {
   detectStandardDaily(
     "guess_the_marrow",
     "/medieval/guessmarrow.phtml",
-    () => pageText().includes("right!") || pageText().includes("wrong!")
+    () => pageText().includes("right!") || pageText().includes("wrong!"),
   );
 
   // ---------------- Wise Old King ----------------
   detectStandardDaily("wise_old_king", "/medieval/wiseking.phtml", () =>
-    pageText().includes("king hagan listens contently")
+    pageText().includes("king hagan listens contently"),
   );
 
   // ---------------- Grumpy Old King ----------------
@@ -488,11 +534,12 @@ export function detectDailyCollect(): void {
       sessionStorage.setItem(sessionKey, "1");
     }
 
-    if (locked) {
+    if (locked && !alreadyReported("grumpy_old_king_locked")) {
       chrome.runtime.sendMessage({
         type: "AUTO_MARK_LOCKED",
         activityId: "grumpy_old_king",
       });
+      markReported("grumpy_old_king_locked");
     }
 
     if (!success && !locked) {
@@ -571,7 +618,7 @@ export function detectDailyCollect(): void {
 
   // ---------------- Coltzan’s Shrine ----------------
   detectStandardDaily("coltzans_shrine", "/desert/shrine.phtml", () =>
-    pageText().includes("walks slowly up to the strange shrine")
+    pageText().includes("walks slowly up to the strange shrine"),
   );
 
   // ---------------- Kreludor Meteor ----------------
@@ -600,8 +647,16 @@ export function detectDailyCollect(): void {
         text.includes("haven't you been feeding") ||
         text.includes("discarded plushie") ||
         text.includes("there is no response from the plushie") ||
-        text.includes("The plushie remains") ||
-        text.includes("neopoints");
+        text.includes("the plushie remains") ||
+        text.includes("neopoints") ||
+        text.includes("is so excited") ||
+        text.includes("you have already visited the plushie today") ||
+        text.includes("stares at you blankly") ||
+        text.includes("you feel a strange warmth") ||
+        text.includes("glassy eyes") ||
+        text.includes("faerie doll") ||
+        text.includes("has been added to your inventory") ||
+        text.includes("something has happened");
 
       if (completed) {
         chrome.runtime.sendMessage({
@@ -678,7 +733,7 @@ export function detectDailyCollect(): void {
       pageText().includes("you got it right in") ||
       pageText().includes("hehe, no there were") ||
       pageText().includes("sorry... wrong") ||
-      pageText().includes("play again")
+      pageText().includes("play again"),
   );
 
   // ---------------- Forgotten Shore ----------------
@@ -691,7 +746,7 @@ export function detectDailyCollect(): void {
         t.includes("nothing of interest to be found today") ||
         t.includes("you found something buried in the sand")
       );
-    }
+    },
   );
 
   const HEALING_SPRINGS_PHRASES = [
@@ -711,7 +766,7 @@ export function detectDailyCollect(): void {
       const text = getPageText().toLowerCase();
 
       const healed = HEALING_SPRINGS_PHRASES.some((phrase) =>
-        text.includes(phrase)
+        text.includes(phrase),
       );
 
       if (healed) {
@@ -727,35 +782,22 @@ export function detectDailyCollect(): void {
     }
   }
 
-  const HAUNTED_WOODS_HUNT_PHRASES = [
-    "you find",
-    "as you search the clearing",
-    "you go to pick something unusual up",
-    "something scurries underneath",
-    "you try to make your way deeper into the woods",
-    "something on the ground catches your eye",
-    "something smells",
-  ];
-
   // ---------------- Haunted Woods Hunt ----------------
+  // Tracks 5 item-clicks per session; 5 clicks = 1 use (max 2/day).
+  // Uses localStorage so counts survive page reloads between clicks.
+  // "Come back tomorrow" can appear via display:none reveal — use attribute observer.
   if (location.pathname.includes("/halloween/haunted_woods_hunt.phtml")) {
-    if (!alreadyReported("haunted_woods_hunt")) {
-      const text = getPageText().toLowerCase();
+    detectHWH();
 
-      const triggered = HAUNTED_WOODS_HUNT_PHRASES.some((phrase) =>
-        text.includes(phrase)
-      );
-
-      if (triggered) {
-        console.log("[NAT] Haunted Woods Hunt detected");
-
-        chrome.runtime.sendMessage({
-          type: "AUTO_MARK_COMPLETED",
-          activityId: "haunted_woods_hunt",
-        });
-
-        markReported("haunted_woods_hunt");
-      }
+    if (!sessionStorage.getItem("nat_hwh_obs")) {
+      sessionStorage.setItem("nat_hwh_obs", "1");
+      new MutationObserver(detectHWH).observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["style", "class"],
+      });
     }
   }
 
@@ -774,6 +816,6 @@ export function detectDailyCollect(): void {
     "buried_treasure",
     "/pirates/buriedtreasure/buriedtreasure.phtml",
     () =>
-      location.search.length > 1 || pageText().includes("pulls out a ticket")
+      location.search.length > 1 || pageText().includes("pulls out a ticket"),
   );
 }

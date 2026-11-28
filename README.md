@@ -13,6 +13,11 @@ and notifies you when activities are available again.
     rates vs published odds, stats per Nerkmid type
 - Optional form prefill for both machines (NeoCola: first token, Dehydrated H20, 3 presses;
   Vending: first option in each dropdown) - you still press submit yourself
+- Stamp album tracking: records your own album pages as you view them (nothing is
+  loaded in the background), shows progress, missing stamps with Shop Wizard / Trading
+  Post / Jellyneo links, and a checklist of pages still to sync
+- Album item badges on shops, user shops, auctions, Trading Post, Shop Wizard, inventory
+  and SDB: "Need" (empty slot), "In album", or a link to sync that page
 - Does NOT automate gameplay or perform actions
 
 ## Disclaimer
@@ -22,3 +27,10 @@ All actions are performed manually by the user.
 
 ## License
 MIT
+
+## Credits
+
+Stamp album slot data for pages 1-48 comes from the
+[Stamp Album Helper](https://github.com/tvdh/neo_userscripts) userscript
+(EatWooloos / Hert123 and contributors), which is based on the
+[Jellyneo item database](https://items.jellyneo.net/).

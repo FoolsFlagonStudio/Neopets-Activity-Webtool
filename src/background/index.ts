@@ -10,6 +10,7 @@ import { startScheduler, checkTrainingAndNotify } from "./scheduler";
 import { SHOPS, getShopById } from "../data/shops";
 import type { ItemPriceEntry, RestockPriceStore, FetchStatus } from "../types/restock";
 import { RESTOCK_STORAGE_KEY, FETCH_STATUS_KEY } from "../types/restock";
+import { syncStampPage, resetStampStore } from "./stampStore";
 import {
   loadTrackerStore,
   recordTrackerEntry,
@@ -495,5 +496,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return done(resetTracker(message.trackerId));
     case "TRACKER_UPDATE_SETTINGS":
       return done(updateTrackerSettings(message.trackerId, message.settings));
+  }
+});
+
+// ---------------- Stamp Album ----------------
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "STAMPS_SYNC_PAGE") {
+    syncStampPage(message.payload).then(
+      () => sendResponse({ success: true }),
+      () => sendResponse({ success: false })
+    );
+    return true;
+  }
+  if (message?.type === "STAMPS_RESET") {
+    resetStampStore().then(() => sendResponse({ success: true }));
+    return true;
   }
 });

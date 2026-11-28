@@ -7,6 +7,7 @@
 This extension:
 
 - Stores activity completion timestamps and counters locally using Chrome storage
+- Stores which stamp album slots you have filled, read from your own album pages when you view them
 - Stores reward tracker logs (e.g. NeoCola Machine NP and prizes) locally using Chrome storage; you can export or reset them at any time from the Trackers tab
 - Does **not** collect usernames, passwords, emails, or account identifiers
 - Does **not** transmit any data to external servers

@@ -7,6 +7,8 @@ import { applyPyramidsHelper } from "./detectors/pyramidsHelper";
 import { applySolitaireHelper } from "./detectors/solitaireHelper";
 import { detectNeocola } from "./detectors/neocolaDetector";
 import { detectVending } from "./detectors/vendingDetector";
+import { detectStampAlbum } from "./detectors/stampAlbumDetector";
+import { applyStampHighlights } from "./detectors/stampHighlighter";
 
 // Initial overlay passes — each exits immediately if not on the right page.
 applyShopOverlay();
@@ -22,6 +24,8 @@ function runDetectors(): void {
   reapplyShopOverlay();
   detectNeocola();
   detectVending();
+  detectStampAlbum();
+  applyStampHighlights();
 }
 
 runDetectors();

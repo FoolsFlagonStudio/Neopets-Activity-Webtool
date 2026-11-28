@@ -157,24 +157,26 @@ body {
   z-index: 10;
 
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  gap: 2px;
+  padding: 6px 4px;
 
   background: #fafafa;
   border-bottom: 1px solid #e5e7eb;
 }
 
 .popup-nav button {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
 
-  padding: 6px 8px;
+  padding: 6px 5px;
   border: none;
   border-radius: 8px;
 
   background: transparent;
   color: #6b7280;
 
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
 
@@ -611,4 +613,184 @@ button:disabled {
 .prefill-field .form-select {
   font-size: 0.78rem;
   padding-right: 1.6rem;
+}
+
+/* ================================
+   Stamp Album Page
+================================ */
+
+.album-sync-box {
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.album-filter {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.album-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+.album-row.complete {
+  border-color: #86d4a6;
+}
+
+.album-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: #fff;
+  padding: 5px 8px;
+  text-align: left;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.album-row-header:hover {
+  background: #f9fafb;
+}
+
+.album-name {
+  flex: 1;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 130px;
+  flex-shrink: 0;
+}
+
+.album-bar {
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.album-bar > span {
+  display: block;
+  height: 100%;
+  background: #7c3aed;
+}
+
+.album-row.complete .album-bar > span {
+  background: #22a06b;
+}
+
+.album-count {
+  width: 38px;
+  text-align: right;
+  color: #4b5563;
+  font-variant-numeric: tabular-nums;
+}
+
+.album-status {
+  width: 78px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.album-status.unsynced {
+  color: #1e40af;
+}
+
+.album-status.stale {
+  color: #b45309;
+}
+
+.album-detail {
+  padding: 8px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  max-width: 300px;
+  margin: 0 auto 8px;
+}
+
+.album-slot {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.album-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.album-slot.missing img {
+  filter: grayscale(1);
+  opacity: 0.3;
+}
+
+.album-slot.missing {
+  border-style: dashed;
+  border-color: #c4b5fd;
+}
+
+.album-slot.empty {
+  background: repeating-linear-gradient(45deg, #f9fafb, #f9fafb 4px, #f3f4f6 4px, #f3f4f6 8px);
+}
+
+.album-unknown {
+  color: #9ca3af;
+  font-weight: 700;
+}
+
+.album-missing-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.78rem;
+  padding: 2px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.album-pos {
+  width: 26px;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+}
+
+.album-missing-name {
+  flex: 1;
+}
+
+.album-links {
+  display: flex;
+  gap: 6px;
+  font-size: 0.72rem;
+}
+
+.album-links a {
+  text-decoration: none;
 }

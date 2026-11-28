@@ -97,5 +97,7 @@ export function ownershipOf(
 ): OwnershipState {
   const page = store?.pages[String(info.pageId)];
   if (!page) return "unsynced";
-  return page.owned[String(info.position)] ? "owned" : "missing";
+  if (page.owned[String(info.position)]) return "owned";
+  // syncedAt 0 = page never viewed, we only know about stamps added since.
+  return page.syncedAt > 0 ? "missing" : "unsynced";
 }

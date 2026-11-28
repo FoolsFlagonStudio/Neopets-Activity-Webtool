@@ -18,7 +18,7 @@ import {
   normalizeName,
   ownershipOf,
 } from "../../data/stamps";
-import type { AlbumItemInfo, StampAlbumStore } from "../../types/stamps";
+import type { AlbumItemInfo, StampAdded, StampAlbumStore } from "../../types/stamps";
 
 const PATHS = [
   /^\/objects\.phtml/, // NPC shops
@@ -36,6 +36,8 @@ const PATHS = [
 ];
 
 const DONE_ATTR = "data-nat-album";
+const SKIP_ATTR = "data-nat-album-skip";
+const ADDED_PATTERN = /You have added\s+(.+?)\s+into your Stamp Album/i;
 const STYLE_ID = "nat-album-style";
 
 /** Elements whose text we consider as a possible item name. */
@@ -45,6 +47,8 @@ let store: StampAlbumStore | undefined;
 let index: ReturnType<typeof buildAlbumIndex> | null = null;
 let loading: Promise<void> | null = null;
 let scheduled = false;
+let watching = false;
+const reportedAdds = new Set<string>();
 
 function onSupportedPage(): boolean {
   return PATHS.some((re) => re.test(location.pathname));
@@ -58,7 +62,87 @@ function load(): Promise<void> {
       resolve();
     });
   });
+
+  // Album changed (e.g. a stamp was just added): refresh badges in place.
+  if (!watching) {
+    watching = true;
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes[STAMP_STORAGE_KEY]) return;
+      store = changes[STAMP_STORAGE_KEY].newValue as StampAlbumStore | undefined;
+      index = buildAlbumIndex(store);
+      clearBadges();
+      scan();
+    });
+  }
   return loading;
+}
+
+function clearBadges(): void {
+  document.querySelectorAll(".nat-album-badge").forEach((b) => b.remove());
+  document
+    .querySelectorAll(".nat-album-outline-need")
+    .forEach((el) => el.classList.remove("nat-album-outline-need"));
+  for (const attr of [DONE_ATTR, DONE_ATTR + "-seen"]) {
+    document.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
+  }
+}
+
+/** Text of an element without any of our own badges in it. */
+function textWithoutBadges(el: Element): string {
+  const clone = el.cloneNode(true) as Element;
+  clone.querySelectorAll(".nat-album-badge").forEach((b) => b.remove());
+  return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Inventory "Success! You have added X into your Stamp Album!" popup:
+ * mark X as owned straight away, and keep badges out of the popup.
+ */
+function detectAlbumAdd(root: Element): void {
+  if (!index) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!/You have added/i.test(node.nodeValue ?? "")) continue;
+
+    // The sentence spans several nodes (<b>Name</b>), so read the
+    // smallest ancestor that contains all of it.
+    let box: Element | null = node.parentElement;
+    for (let i = 0; box && i < 4 && !ADDED_PATTERN.test(textWithoutBadges(box)); i++) {
+      box = box.parentElement;
+    }
+    if (!box) continue;
+    const m = textWithoutBadges(box).match(ADDED_PATTERN);
+    if (!m) continue;
+
+    // Whole popup (up to the one holding "View Album") is off-limits for badges.
+    let popup: Element = box;
+    for (let i = 0; i < 6 && popup.parentElement && !/View Album/i.test(popup.textContent ?? ""); i++) {
+      popup = popup.parentElement;
+    }
+    popup.setAttribute(SKIP_ATTR, "1");
+    popup.querySelectorAll(".nat-album-badge").forEach((b) => b.remove());
+    popup
+      .querySelectorAll(".nat-album-outline-need")
+      .forEach((el) => el.classList.remove("nat-album-outline-need"));
+
+    const name = m[1].trim();
+    const info = index.byName.get(normalizeName(name));
+    if (!info || reportedAdds.has(info.name)) continue;
+    reportedAdds.add(info.name);
+
+    const added: StampAdded = {
+      pageId: info.pageId,
+      position: info.position,
+      name: info.name,
+      img: info.img,
+    };
+    console.log("[NAT] Stamp added to album", added);
+    chrome.runtime.sendMessage({ type: "STAMPS_MARK_OWNED", payload: added });
+  }
+}
+
+function skipped(el: Element): boolean {
+  return !!el.closest(`[${SKIP_ATTR}]`);
 }
 
 function injectStyles(): void {
@@ -127,11 +211,12 @@ function outlineIfNeeded(info: AlbumItemInfo, el: Element): void {
 function scan(): void {
   if (!index) return;
   const root = document.querySelector("td.content") ?? document.body;
+  detectAlbumAdd(document.body); // popups can live outside td.content
   const { byName, byImg } = index;
 
   // 1) data-name attributes (new NPC shop layout)
   for (const el of root.querySelectorAll<HTMLElement>("[data-name]")) {
-    if (el.hasAttribute(DONE_ATTR + "-seen")) continue;
+    if (el.hasAttribute(DONE_ATTR + "-seen") || skipped(el)) continue;
     el.setAttribute(DONE_ATTR + "-seen", "1");
     const info = byName.get(normalizeName(el.dataset.name ?? ""));
     if (!info) continue;
@@ -150,7 +235,7 @@ function scan(): void {
     if (text.length < 4 || text.length > 80) continue;
     const parent = node.parentElement;
     if (!parent || !NAME_TAGS.has(parent.tagName)) continue;
-    if (parent.closest(".nat-album-badge, script, style, select, option")) continue;
+    if (parent.closest(".nat-album-badge, script, style, select, option") || skipped(parent)) continue;
     const info = byName.get(normalizeName(text));
     if (info) hits.push([parent, info]);
   }
@@ -161,7 +246,7 @@ function scan(): void {
 
   // 3) item images
   for (const img of root.querySelectorAll<HTMLImageElement>('img[src*="/items/"]')) {
-    if (img.hasAttribute(DONE_ATTR + "-seen")) continue;
+    if (img.hasAttribute(DONE_ATTR + "-seen") || skipped(img)) continue;
     img.setAttribute(DONE_ATTR + "-seen", "1");
     const info = byImg.get(imgKey(img.getAttribute("src") ?? ""));
     if (!info) continue;

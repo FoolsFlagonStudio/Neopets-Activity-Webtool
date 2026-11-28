@@ -1,5 +1,5 @@
 import { STAMP_STORAGE_KEY } from "../data/stamps";
-import type { StampAlbumStore, StampPageSync } from "../types/stamps";
+import type { StampAdded, StampAlbumStore, StampPageSync } from "../types/stamps";
 
 export async function loadStampStore(): Promise<StampAlbumStore> {
   return new Promise((resolve) => {
@@ -51,5 +51,21 @@ export function syncStampPage(payload: StampPageSync): Promise<void> {
 export function resetStampStore(): Promise<void> {
   return mutate((store) => {
     store.pages = {};
+  });
+}
+
+/** Mark one stamp as owned without a full page sync. */
+export function markStampOwned(added: StampAdded): Promise<void> {
+  const pageId = Math.floor(Number(added?.pageId));
+  const pos = Math.floor(Number(added?.position));
+  if (!Number.isFinite(pageId) || pageId < 1 || pageId > 200) return Promise.resolve();
+  if (!Number.isInteger(pos) || pos < 1 || pos > 25) return Promise.resolve();
+
+  return mutate((store) => {
+    const page = (store.pages[String(pageId)] ??= { syncedAt: 0, owned: {} });
+    page.owned[String(pos)] = {
+      name: String(added.name).slice(0, 100),
+      img: String(added.img).slice(0, 100),
+    };
   });
 }

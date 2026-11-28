@@ -26,6 +26,7 @@ export interface OwnedSlot {
 }
 
 export interface SyncedPage {
+  /** 0 = page never viewed; only individually added stamps are known. */
   syncedAt: number;
   /** position (1-25) → owned item */
   owned: Record<string, OwnedSlot>;
@@ -39,6 +40,14 @@ export interface StampAlbumStore {
 export interface StampPageSync {
   pageId: number;
   owned: Record<string, OwnedSlot>;
+}
+
+/** A single stamp just added to the album (from the inventory popup). */
+export interface StampAdded {
+  pageId: number;
+  position: number;
+  name: string;
+  img: string;
 }
 
 /** Resolved info about an album item, used by the shop highlighter. */

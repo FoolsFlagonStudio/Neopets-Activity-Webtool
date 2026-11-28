@@ -92,8 +92,10 @@ const searchUrls = (name: string) => {
 function buildPages(): PageView[] {
   return PAGE_IDS.map((id) => {
     const ref = getRefPage(id)!;
-    const synced = store.pages[String(id)];
-    const ownedMap = synced?.owned ?? {};
+    const stored = store.pages[String(id)];
+    const ownedMap = stored?.owned ?? {};
+    // syncedAt 0 = only individually added stamps known; page still needs a visit.
+    const synced = stored && stored.syncedAt > 0 ? stored : undefined;
     let slots: SlotView[];
 
     if (ref.slots) {
